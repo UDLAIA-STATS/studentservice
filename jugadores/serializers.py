@@ -10,10 +10,18 @@ from.models import (Jugadores)
 class JugadorSerializer (serializers.ModelSerializer):
     class Meta:
         model = Jugadores
-        fields = ['idJugador', 'nombreJugador', 'apellidoJugador', 'numeroCamisetaJugador', 'posicionJugador', 'jugadorActivo', 'idBanner']
-        
-    def validate_idBannerJugador(self, value):
-        if self.instance is None and Jugadores.objects.filter(idBanner = value).exists():
+        fields = [
+            'idjugador',
+            'nombrejugador',
+            'apellidojugador',
+            'numerocamisetajugador',
+            'posicionjugador',
+            'jugadoractivo',
+            'idbanner'
+            ]
+
+    def validate_idbanner(self, value):
+        if self.instance is None and Jugadores.objects.filter(idbanner=value).exists():
             raise serializers.ValidationError("Ya existe un jugador asociado a ese ID Banner")
         return value
     
