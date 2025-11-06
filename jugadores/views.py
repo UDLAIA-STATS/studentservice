@@ -26,8 +26,41 @@ def paginate_queryset(queryset, serializer_class, request):
         "results": serializer.data,
     }
 
-
 # ===========================================
 # JUGADORES VIEWS
 # ===========================================
 
+@api_view(['GET'])
+def jugadores_list(request):
+    jugadores = Jugadores.objects.all()
+    serializer = JugadoresSerializer(jugadores, many=True)
+    return Response(serializer.data)
+
+@api_view(['GET'])
+def jugadores_detail(request, idJugador):
+    jugador = Jugadores.objects.get(idJugador=idJugador)
+    serializer = JugadoresSerializer(jugador)
+    return Response(serializer.data)
+
+@api_view(['POST'])
+def jugadores_create(request):
+    serializer = JugadoresSerializer(data=request.data)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['PUT', 'PATCH'])
+def jugadores_update(request, idJugador):
+    jugador = Jugadores.objects.get(idJugador=idJugador)
+    serializer = JugadoresSerializer(jugador, data=request.data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['DELETE'])
+def jugadores_delete(request, idJugador):
+    jugador = Jugadores.objects.get(idJugador=idJugador)
+    jugador.delete()
+    return Response(status=status.HTTP_204_NO_CONTENT)

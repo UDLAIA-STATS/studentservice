@@ -19,4 +19,9 @@ from django.urls import path
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('jugadores/', views.jugadores_list),
+    path('jugadores/<int:idJugador>/', views.jugadores_detail),
+    path('jugadores/crear/', views.jugadores_create),
+    path('jugadores/editar/<int:idJugador>/', views.jugadores_update),
+    path('jugadores/eliminar/<int:idJugador>/', views.jugadores_delete),
 ]

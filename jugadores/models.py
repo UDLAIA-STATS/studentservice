@@ -17,4 +17,3 @@ class Jugadores (models.Model):
     def __str__(self):
         return self.nombreJugador
     
-    
