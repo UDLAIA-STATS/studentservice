@@ -1,0 +1,58 @@
+# ====================================
+#   Archivos y carpetas sensibles
+# ====================================
+.env
+*.env
+.env
+settings.ini
+# ====================================
+#   Archivos de compilación y caché
+# ====================================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.sqlite3
+*.log
+
+# ====================================
+#   Configuración del sistema
+# ====================================
+.DS_Store
+Thumbs.db
+
+# ====================================
+#   Virtual environments
+# ====================================
+venv/
+env/
+.venv/
+pipenv/
+Pipfile.lock
+
+# ====================================
+#   Django
+# ====================================
+db.sqlite3
+/static/
+media/
+*.pot
+*.pyc
+
+# ====================================
+#   Docker
+# ====================================
+/data/
+/docker-compose.override.yml
+*.pid
+*.sock
+
+# ====================================
+#   IDEs y editores
+# ====================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-project
+*.sublime-workspace
