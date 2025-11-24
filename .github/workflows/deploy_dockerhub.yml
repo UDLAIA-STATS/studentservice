@@ -1,4 +1,4 @@
-name: Deploy AuthService to DockerHub
+name: Deploy studentservice to DockerHub
 
 on:
   push:
