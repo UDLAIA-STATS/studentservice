@@ -50,7 +50,7 @@ class JugadorSerializer (serializers.ModelSerializer):
 
     def to_representation(self, instance):
         """
-        Convierte una instancia de Equipo en un objeto JSON.
+        Convierte una instancia de Jugadores en un objeto JSON.
         Se convierte el campo 'imagenjugador' de bytes a base64
         para enviar al frontend. Si el campo es None o una cadena
         vacía, se deja como None.
