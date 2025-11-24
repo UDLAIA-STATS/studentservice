@@ -123,6 +123,7 @@ jobs:
 
       - name: Subir imagen a DockerHub
         run: |
+          SHA=$(git rev-parse --short HEAD)
           docker push ${{ env.DOCKERHUB_REPO }}:${{ env.IMAGE_NAME }}
 
       - name: Mostrar imágenes subidas
