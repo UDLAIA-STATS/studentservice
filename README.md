@@ -80,11 +80,11 @@ docker pull dase123/udlaia-stats:latest
 
 # Ejecutar el contenedor
 docker run -p 8030:8030 \
-  -e DATABASE_NAME=tu_bd \
-  -e DATABASE_USER=tu_usuario \
-  -e DATABASE_PASSWORD=tu_contraseña \
-  -e DATABASE_HOST=host_bd \
-  -e DATABASE_PORT=5432 \
+  -e POSTGRES_DB=tu_bd \
+  -e POSTGRES_USER=tu_usuario \
+  -e POSTGRES_PASSWORD=tu_contraseña \
+  -e POSTGRES_HOST=host_bd \
+  -e POSTGRES_PORT=5432 \
   dase123/udlaia-stats:latest
 ```
 
