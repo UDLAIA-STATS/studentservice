@@ -325,6 +325,7 @@ Cuando el jugador no existe:
 | `numerocamisetajugador` | IntegerField | Número de camiseta |
 | `posicionjugador` | CharField | Posición: Delantero, Mediocampista, Defensa, Portero |
 | `jugadoractivo` | BooleanField | Estado de actividad (default: False) |
+| `imagenjugador` | BinaryField | Imagen del jugador en formato binario (opcional) |
 
 ## Arquitectura
 
