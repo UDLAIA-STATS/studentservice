@@ -14,7 +14,7 @@ from pathlib import Path
 from decouple import config
 from django.core.management.commands.runserver import Command as rs
 
-rs.default_port = 8030
+rs.default_port = config('API_PORT', default='8030')
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -23,7 +23,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-vqldfqjpb%@(r1=j3bp$@4r&pojyr04(%x62nqjn@wg@bqu$gv'
+SECRET_KEY = config('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=False, cast=bool)
@@ -81,11 +81,11 @@ WSGI_APPLICATION = 'studentservice.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': config('DATABASE_NAME', cast=str),
-        'USER': config('DATABASE_USER', cast=str),
-        'PASSWORD': config('DATABASE_PASSWORD', cast=str),
-        'HOST': config('DATABASE_HOST', cast=str),
-        'PORT': config('DATABASE_PORT', cast=int)
+        'NAME': config('POSTGRES_DB', cast=str),
+        'USER': config('POSTGRES_USER', cast=str),
+        'PASSWORD': config('POSTGRES_PASSWORD', cast=str),
+        'HOST': config('POSTGRES_HOST', cast=str),
+        'PORT': config('POSTGRES_PORT', cast=int)
     }
 }
 

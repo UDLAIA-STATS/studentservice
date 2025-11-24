@@ -1,0 +1,74 @@
+name: Django CI/CD
+
+on:
+  push:
+    branches: [ develop, main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  DEBUG: True
+  DB_ENGINE: django.db.backends.postgresql
+  ALLOWED_HOSTS: localhost,127.0.0.1
+  POSTGRES_HOST: localhost
+  POSTGRES_PORT: 5440
+  POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+  POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+  POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+  SECRET_KEY: ${{ secrets.SECRET_KEY }}
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    name: Ejecutar pruebas Django con base de datos en memoria
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ${{ env.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ env.POSTGRES_DB }}
+        ports:
+          - 5440:5432
+        options: >-
+          --health-cmd="pg_isready -U django -d django_db"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+       
+      - name: Print Services
+        run: service --status-all
+
+      - name: Verify wal_level
+        env:
+          PGPASSWORD: ${{ env.POSTGRES_PASSWORD }}
+          PGUSER: ${{ env.POSTGRES_USER }}
+          PGDATABASE: ${{ env.POSTGRES_DB }}
+          PGPORT: 5440
+        run: psql -h localhost -U $PGUSER -d $PGDATABASE -p $PGPORT -c "SHOW wal_level;"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install django djangorestframework pytest pytest-django psycopg2-binary
+
+      - name: Run Django migrations
+        run: |
+          echo "Ejecutando migraciones..."
+          python manage.py migrate --noinput
+
+      - name: Run Django tests
+        run: |
+          echo "Ejecutando tests con pytest..."
+          python manage.py test
