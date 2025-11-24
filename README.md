@@ -32,11 +32,11 @@ Crea un archivo `.env` en la raíz del proyecto con las siguientes variables:
 
 ```env
 DEBUG=True
-DATABASE_NAME=nombre_de_tu_bd
-DATABASE_USER=usuario_postgresql
-DATABASE_PASSWORD=contraseña_postgresql
-DATABASE_HOST=localhost
-DATABASE_PORT=5432
+POSTGRES_DB=nombre_de_tu_bd
+POSTGRES_USER=usuario_postgresql
+POSTGRES_PASSWORD=contraseña_postgresql
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
 ```
 
 ## Instalación
