@@ -101,7 +101,6 @@ jobs:
           POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           FRONTEND_URL: ${{ secrets.FRONTEND_URL }}
-          SECRET_KEY: ${{ secrets.SECRET_KEY }}
           API_PORT: 8030
         run: |
           docker build \
@@ -109,7 +108,6 @@ jobs:
             --build-arg ALLOWED_HOSTS=localhost,127.0.0.1 \
             --build-arg POSTGRES_HOST=localhost \
             --build-arg POSTGRES_PORT=5440 \
-            --build-arg SECRET_KEY=${{ env.SECRET_KEY }} \
             --build-arg POSTGRES_DB=${{ env.POSTGRES_DB }} \
             --build-arg POSTGRES_USER=${{ env.POSTGRES_USER }} \
             --build-arg POSTGRES_PASSWORD=${{ env.POSTGRES_PASSWORD }} \
