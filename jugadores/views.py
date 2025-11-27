@@ -104,7 +104,7 @@ class JugadorUpdateView(APIView):
 
     def patch(self, request, pk):
         jugador = get_object_or_404(Jugadores, pk=pk)
-        serializer = JugadorSerializer(jugador, data=request.data, partial=True)
+        serializer = JugadorSerializer(jugador, data=request.data, partial=True, context={'request': request})
         if serializer.is_valid():
             jugador_actualizado = serializer.save()
             return Response({
