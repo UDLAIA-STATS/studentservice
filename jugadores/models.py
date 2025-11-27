@@ -7,6 +7,7 @@ class Jugadores (models.Model):
     nombrejugador = models.CharField(max_length=250, null= False)
     apellidojugador = models.CharField(max_length=250, null= False)
     numerocamisetajugador = models.IntegerField(null= False)
+    imagenjugador = models.BinaryField(null=True, blank=True)
     posicionjugador = models.CharField(max_length=250,
         choices=[
             ('Delantero', 'Delantero'),
