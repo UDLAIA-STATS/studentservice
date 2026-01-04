@@ -1,5 +1,6 @@
 from math import ceil
 from django.db import IntegrityError
+from django.forms import ValidationError
 from django.shortcuts import get_object_or_404
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -7,6 +8,11 @@ from rest_framework import status
 
 from .models import Jugadores
 from .serializers import JugadorSerializer
+from utils import (
+    pagination_response,
+    error_response,
+    success_response,
+    format_serializer_errors)
 
 
 # ============================================
@@ -20,7 +26,7 @@ def paginate_queryset(queryset, serializer_class, request):
         if page <= 0 or offset <= 0:
             raise ValueError
     except ValueError:
-        return {"error": "Los parámetros 'page' y 'offset' deben ser enteros positivos."}
+        return error_response("Los parámetros 'page' y 'offset' deben ser enteros positivos.", None, status.HTTP_400_BAD_REQUEST)
 
     total = queryset.count()
     start = (page - 1) * offset
@@ -28,14 +34,14 @@ def paginate_queryset(queryset, serializer_class, request):
     paginated = queryset[start:end]
 
     serializer = serializer_class(paginated, many=True)
-    return {
-        "count": total,
-        "page": page,
-        "offset": offset,
-        "pages": ceil(total / offset) if offset else 1,
-        "results": serializer.data,
-    }
-
+    return pagination_response(
+        data=serializer.data,
+        offset=offset,
+        page=page,
+        pages= ceil(total / offset) if offset else 1,
+        status=status.HTTP_200_OK,
+        total_items=total
+    ) 
 
 # ============================================
 # VIEWS DE JUGADORES (solo JSON)
@@ -45,41 +51,28 @@ class JugadorAllView(APIView):
     """Lista todos los jugadores con paginación (modo JSON)."""
 
     def get(self, request):
-        jugadores = Jugadores.objects.all().order_by("idjugador")
-        paginated_data = paginate_queryset(jugadores, JugadorSerializer, request)
-        if "error" in paginated_data:
-            return Response(paginated_data, status=status.HTTP_400_BAD_REQUEST)
-        return Response(paginated_data, status=status.HTTP_200_OK)
+        try:
+            jugadores = Jugadores.objects.all().order_by("idjugador")
+            paginated_data = paginate_queryset(jugadores, JugadorSerializer, request)
+            return paginated_data
+        except Exception as err:
+            return error_response("No se pudo obtener los jugadores", err, status.HTTP_400_BAD_REQUEST)
+            
 
 class JugadorListCreateView(APIView):
-    """Crea un jugador o lista todos los jugadores."""
-
-    def get(self, request):
-        jugadores = Jugadores.objects.all().order_by("idjugador")
-        paginated_data = paginate_queryset(jugadores, JugadorSerializer, request)
-        if "error" in paginated_data:
-            return Response(paginated_data, status=status.HTTP_400_BAD_REQUEST)
-        return Response(paginated_data, status=status.HTTP_200_OK)
+    """Crea un jugador."""
 
     def post(self, request):
         serializer = JugadorSerializer(data=request.data)
-        if serializer.is_valid():
-            try:
-                jugador = serializer.save()
-                jugador_data = JugadorSerializer(jugador).data
-                return Response(
-                    {
-                        "mensaje": "Jugador creado correctamente",
-                        "jugador": jugador_data
-                    },
-                    status=status.HTTP_201_CREATED
-                )
-            except IntegrityError:
-                return Response(
-                    {"error": "Ya existe un jugador con esos datos."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        if not serializer.is_valid():
+            errors = format_serializer_errors(serializer.errors)
+            raise ValidationError(message=errors)
+        try:
+            jugador = serializer.save()
+            jugador_data = JugadorSerializer(jugador).data
+            return success_response("Jugador creado correctamente", jugador_data, status.HTTP_201_CREATED)
+        except IntegrityError:
+            return error_response("Ya existe un jugador con los mismos datos.", None, status.HTTP_400_BAD_REQUEST)
 
 
 class JugadorDetailView(APIView):
