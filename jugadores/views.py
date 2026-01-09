@@ -1,14 +1,13 @@
 from math import ceil
 from django.db import IntegrityError
-from django.forms import ValidationError
+from rest_framework.exceptions import ValidationError
 from django.shortcuts import get_object_or_404
 from rest_framework.views import APIView
-from rest_framework.response import Response
 from rest_framework import status
 
 from .models import Jugadores
 from .serializers import JugadorSerializer
-from utils import (
+from jugadores.utils import (
     pagination_response,
     error_response,
     success_response,
@@ -96,13 +95,17 @@ class JugadorListCreateView(APIView):
         serializer = JugadorSerializer(data=request.data)
         if not serializer.is_valid():
             errors = format_serializer_errors(serializer.errors)
-            raise ValidationError(message=errors)
+            raise ValidationError(detail=errors)
         try:
             jugador = serializer.save()
             jugador_data = JugadorSerializer(jugador).data
             return success_response("Jugador creado correctamente", jugador_data, status.HTTP_201_CREATED)
         except IntegrityError:
             return error_response("Ya existe un jugador con los mismos datos.", None, status.HTTP_400_BAD_REQUEST)
+        except ValidationError as ve:
+            return error_response("Error de validación al crear el jugador.", ve.detail, status.HTTP_400_BAD_REQUEST)
+        except Exception as err:
+            return error_response("No se pudo crear el jugador.", str(err), status.HTTP_400_BAD_REQUEST)
 
 
 class JugadorDetailView(APIView):
@@ -155,35 +158,60 @@ class JugadorUpdateView(APIView):
         Returns:
             Response: La respuesta HTTP con el resultado de la operación
         """
-        jugador = get_object_or_404(Jugadores, pk=pk)
-        serializer = JugadorSerializer(jugador, data=request.data, partial=True, context={'request': request})
-        if not serializer.is_valid():
-            errors = format_serializer_errors(serializer.errors)
-            return error_response("Error de validación", errors, status.HTTP_400_BAD_REQUEST)
-        jugador_actualizado = serializer.save()
-        return success_response("Jugador actualizado correctamente", JugadorSerializer(jugador_actualizado).data, status.HTTP_200_OK)
+        try:
+            jugador = get_object_or_404(Jugadores, pk=pk)
+            serializer = JugadorSerializer(jugador, data=request.data, partial=True, context={'request': request})
+            if not serializer.is_valid():
+                errors = format_serializer_errors(serializer.errors)
+                raise ValidationError(detail=errors)
+            jugador_actualizado = serializer.save()
+            return success_response("Jugador actualizado correctamente", JugadorSerializer(jugador_actualizado).data, status.HTTP_200_OK)
+        except IntegrityError:
+            return error_response("Ya existe un jugador con los mismos datos.", None, status.HTTP_400_BAD_REQUEST)
+        except ValidationError as ve:
+            return error_response("Error de validación al actualizar el jugador.", ve.detail, status.HTTP_400_BAD_REQUEST)
+        except Exception as err:
+            return error_response("No se pudo actualizar el jugador.", str(err), status.HTTP_400_BAD_REQUEST)
 
 
 class JugadorDeleteView(APIView):
-    """Elimina un jugador por su ID."""
+    """
+    Desactiva (soft delete) un jugador por su ID Banner.
+    """
 
     def delete(self, request, banner):
         """
-        Elimina un usuario del sistema utilizando su ID Banner.
+        Desactiva un jugador del sistema utilizando su ID Banner.
 
-        **Parámetros**
-
-        - `banner`: ID Banner del usuario a eliminar.
+        - No elimina el registro de la base de datos.
+        - Solo marca el jugador como inactivo.
 
         **Respuesta exitosa**
-
-        - Código de estado: 200
-        - Mensaje: "Jugador eliminado correctamente"
-
-        **Ejemplo con curl**
-
-        curl -X DELETE http://localhost:8030/api/jugadores/<banner>/delete/
+        - Código: 200
+        - Mensaje: "Jugador desactivado correctamente"
         """
-        jugador = get_object_or_404(Jugadores, idbanner=banner)
-        jugador.delete()
-        return success_response("Jugador eliminado correctamente", None, status.HTTP_200_OK)
+        try:
+            jugador = get_object_or_404(Jugadores, idbanner=banner)
+
+            if not jugador.jugadoractivo:
+                return success_response(
+                    "El jugador ya se encuentra desactivado.",
+                    None,
+                    status.HTTP_200_OK
+                )
+
+            jugador.jugadoractivo = False
+            jugador.save(update_fields=["jugadoractivo"])
+
+            return success_response(
+                "Jugador desactivado correctamente.",
+                None,
+                status.HTTP_200_OK
+            )
+
+        except Exception as err:
+            return error_response(
+                "No se pudo desactivar el jugador.",
+                str(err),
+                status.HTTP_400_BAD_REQUEST
+            )

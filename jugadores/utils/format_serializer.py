@@ -1,4 +1,4 @@
-def format_serializer_errors(errors):
+def format_serializer_errors(errors) -> dict | str | list:
     if isinstance(errors, dict):
         formatted = {}
         for field, value in errors.items():
