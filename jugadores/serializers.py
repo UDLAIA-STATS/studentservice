@@ -4,6 +4,7 @@ from typing import Tuple
 from django.db import IntegrityError
 from rest_framework import serializers
 from.models import (Jugadores)
+from rest_framework.validators import UniqueValidator
 
 POSICIONES_VALIDAS = ("Delantero", "Mediocampista", "Defensa", "Portero")
 ID_BANNER_REGEX = r'^[A-Za-z](?!0{8}$)\d{8}$'
@@ -49,21 +50,25 @@ class JugadorSerializer (serializers.ModelSerializer):
     def validate_idbanner(self, value):
         if not re.match(ID_BANNER_REGEX, value):
             raise serializers.ValidationError(
-                "Debe tener una letra seguida de hasta 8 números. Los números no pueden ser todos ceros (ej: A123)."
+                "Debe tener una letra seguida de hasta 8 números. Los números no pueden ser todos ceros (ej: A00088860)."
             )
-        
-        # Solo validar duplicados en creación
-        if not self.instance:
+
+        if self.instance:
+            if Jugadores.objects.exclude(pk=self.instance.pk).filter(idbanner=value).exists():
+                raise serializers.ValidationError(
+                    "Ya existe otro jugador con este ID Banner."
+                )
+        else:
             if Jugadores.objects.filter(idbanner=value).exists():
                 raise serializers.ValidationError(
-                    "Ya existe un jugador con ese ID Banner."
+                    "Ya existe un jugador asociado a ese ID Banner."
                 )
         return value
 
     def validate_numerocamisetajugador(self, value):
-        if value <= 0:
+        if not (1 <= value <= 99):
             raise serializers.ValidationError(
-                "El número debe ser positivo."
+                "El número de camiseta debe ser entre 1 y 99."
             )
         return value
 
@@ -164,22 +169,25 @@ class JugadorUpdateSerializer(serializers.ModelSerializer):
     def validate_idbanner(self, value):
         if not re.match(ID_BANNER_REGEX, value):
             raise serializers.ValidationError(
-                "Debe tener una letra seguida de hasta 8 números. Los números no pueden ser todos ceros (ej: A123)."
+                "Debe tener una letra seguida de hasta 8 números. Los números no pueden ser todos ceros (ej: A00088860)."
             )
-        
+
         if self.instance:
-            if Jugadores.objects.exclude(
-                pk=self.instance.pk
-            ).filter(idbanner=value).exists():
+            if Jugadores.objects.exclude(pk=self.instance.pk).filter(idbanner=value).exists():
                 raise serializers.ValidationError(
                     "Ya existe otro jugador con este ID Banner."
+                )
+        else:
+            if Jugadores.objects.filter(idbanner=value).exists():
+                raise serializers.ValidationError(
+                    "Ya existe un jugador asociado a ese ID Banner."
                 )
         return value
 
     def validate_numerocamisetajugador(self, value):
-        if value <= 0:
+        if not (1 <= value <= 99):
             raise serializers.ValidationError(
-                "El número de camiseta debe ser positivo."
+                "El número de camiseta debe ser entre 1 y 99."
             )
         return value
 

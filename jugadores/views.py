@@ -1,9 +1,12 @@
 from math import ceil
 from django.db import IntegrityError
-from rest_framework.exceptions import ValidationError
+from django.core.exceptions import ValidationError
+from rest_framework.exceptions import ValidationError as DRFValidationError
 from django.shortcuts import get_object_or_404
 from rest_framework.views import APIView
 from rest_framework import status
+
+from jugadores.utils.paginate import paginate_queryset
 
 from .models import Jugadores
 from .serializers import JugadorSerializer
@@ -13,48 +16,6 @@ from jugadores.utils import (
     success_response,
     format_serializer_errors)
 
-
-# ============================================
-# Función auxiliar de paginación
-# ============================================
-def paginate_queryset(queryset, serializer_class, request):
-    """
-    Pagina un queryset utilizando los parámetros 'page' y 'offset' de la request.
-
-    Parámetros:
-        queryset (QuerySet): El queryset a paginar
-        serializer_class (serializers.ModelSerializer): La clase de serializer a utilizar para serializar los objetos
-        request (Request): La request que contiene los parámetros 'page' y 'offset'
-
-    Retorna:
-        Response: La respuesta HTTP con la lista de objetos paginada
-    """
-    try:
-        page = int(request.query_params.get("page", 1))
-        offset = int(request.query_params.get("offset", 10))
-        if page <= 0 or offset <= 0:
-            raise ValueError
-    except ValueError:
-        return error_response("Los parámetros 'page' y 'offset' deben ser enteros positivos.", None, status.HTTP_400_BAD_REQUEST)
-
-    total = queryset.count()
-    start = (page - 1) * offset
-    end = start + offset
-    paginated = queryset[start:end]
-
-    serializer = serializer_class(paginated, many=True)
-    return pagination_response(
-        data=serializer.data,
-        offset=offset,
-        page=page,
-        pages= ceil(total / offset) if offset else 1,
-        status=status.HTTP_200_OK,
-        total_items=total
-    ) 
-
-# ============================================
-# VIEWS DE JUGADORES (solo JSON)
-# ============================================
 
 class JugadorAllView(APIView):
     """Lista todos los jugadores con paginación (modo JSON)."""
@@ -95,17 +56,16 @@ class JugadorListCreateView(APIView):
         serializer = JugadorSerializer(data=request.data)
         if not serializer.is_valid():
             errors = format_serializer_errors(serializer.errors)
-            raise ValidationError(detail=errors)
+            return error_response("Error de validación al crear el jugador.", errors, status.HTTP_400_BAD_REQUEST)
         try:
             jugador = serializer.save()
             jugador_data = JugadorSerializer(jugador).data
             return success_response("Jugador creado correctamente", jugador_data, status.HTTP_201_CREATED)
         except IntegrityError:
             return error_response("Ya existe un jugador con los mismos datos.", None, status.HTTP_400_BAD_REQUEST)
-        except ValidationError as ve:
-            return error_response("Error de validación al crear el jugador.", ve.detail, status.HTTP_400_BAD_REQUEST)
         except Exception as err:
             return error_response("No se pudo crear el jugador.", str(err), status.HTTP_400_BAD_REQUEST)
+
 
 
 class JugadorDetailView(APIView):
@@ -123,7 +83,10 @@ class JugadorDetailView(APIView):
             Response: La respuesta HTTP con el resultado de la operación
         """
         jugador = get_object_or_404(Jugadores, idbanner=banner)
-        return success_response("Jugador obtenido correctamente", JugadorSerializer(jugador).data, status.HTTP_200_OK)
+        return success_response(
+            "Jugador obtenido correctamente",
+            JugadorSerializer(jugador).data,
+            status.HTTP_200_OK)
 
 class JugadorDetailViewById(APIView):
     """Obtiene el detalle de un jugador por su ID."""
@@ -139,9 +102,15 @@ class JugadorDetailViewById(APIView):
         Returns:
             Response: La respuesta HTTP con el resultado de la operación
         """
-        jugador = get_object_or_404(Jugadores, idjugador=pk)
-        return success_response("Jugador obtenido correctamente", JugadorSerializer(jugador).data, status.HTTP_200_OK)
+        try:
+            jugador = get_object_or_404(Jugadores, idjugador=pk)
 
+            return success_response(
+                "Jugador obtenido correctamente",
+                JugadorSerializer(jugador).data,
+                status.HTTP_200_OK)
+        except Exception as err:
+            return error_response("No se pudo obtener el jugador.", str(err), status.HTTP_400_BAD_REQUEST)
 
 
 class JugadorUpdateView(APIView):
@@ -162,14 +131,17 @@ class JugadorUpdateView(APIView):
             jugador = get_object_or_404(Jugadores, pk=pk)
             serializer = JugadorSerializer(jugador, data=request.data, partial=True, context={'request': request})
             if not serializer.is_valid():
-                errors = format_serializer_errors(serializer.errors)
-                raise ValidationError(detail=errors)
+                return error_response(
+                    "Error de validación al crear el jugador.",
+                    format_serializer_errors(serializer.errors),
+                    status.HTTP_400_BAD_REQUEST)
             jugador_actualizado = serializer.save()
-            return success_response("Jugador actualizado correctamente", JugadorSerializer(jugador_actualizado).data, status.HTTP_200_OK)
+            return success_response(
+                "Jugador actualizado correctamente",
+                JugadorSerializer(jugador_actualizado).data,
+                status.HTTP_200_OK)
         except IntegrityError:
             return error_response("Ya existe un jugador con los mismos datos.", None, status.HTTP_400_BAD_REQUEST)
-        except ValidationError as ve:
-            return error_response("Error de validación al actualizar el jugador.", ve.detail, status.HTTP_400_BAD_REQUEST)
         except Exception as err:
             return error_response("No se pudo actualizar el jugador.", str(err), status.HTTP_400_BAD_REQUEST)
 
@@ -194,8 +166,8 @@ class JugadorDeleteView(APIView):
             jugador = get_object_or_404(Jugadores, idbanner=banner)
 
             if not jugador.jugadoractivo:
-                return success_response(
-                    "El jugador ya se encuentra desactivado.",
+                return error_response(
+                    f"El jugador {jugador.nombrejugador} ya se encuentra desactivado.",
                     None,
                     status.HTTP_200_OK
                 )
@@ -204,7 +176,7 @@ class JugadorDeleteView(APIView):
             jugador.save(update_fields=["jugadoractivo"])
 
             return success_response(
-                "Jugador desactivado correctamente.",
+                f"Jugador {jugador.nombrejugador} desactivado correctamente.",
                 None,
                 status.HTTP_200_OK
             )
