@@ -1,17 +1,17 @@
 from math import ceil
 from django.db import IntegrityError
 from django.core.exceptions import ValidationError
+from django.http import Http404
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from django.shortcuts import get_object_or_404
 from rest_framework.views import APIView
 from rest_framework import status
 
-from jugadores.utils.paginate import paginate_queryset
 
 from .models import Jugadores
 from .serializers import JugadorSerializer
-from jugadores.utils import (
-    pagination_response,
+from shared import (
+    paginate_queryset,
     error_response,
     success_response,
     format_serializer_errors)
@@ -68,7 +68,7 @@ class JugadorListCreateView(APIView):
 
 
 
-class JugadorDetailView(APIView):
+class JugadorDetailViewByBanner(APIView):
     """Obtiene el detalle de un jugador por su ID."""
 
     def get(self, request, banner):
@@ -109,6 +109,38 @@ class JugadorDetailViewById(APIView):
                 "Jugador obtenido correctamente",
                 JugadorSerializer(jugador).data,
                 status.HTTP_200_OK)
+        except Exception as err:
+            return error_response("No se pudo obtener el jugador.", str(err), status.HTTP_400_BAD_REQUEST)
+
+
+class JugadorDetailViewByShirtNumber(APIView):
+    """Obtiene el detalle de un jugador por su número de camiseta."""
+
+    def get(self, request, numero_camiseta):
+        """
+        Obtiene el detalle de un usuario por su número de camiseta.
+
+        Args:
+            request (Request): La petición HTTP
+            numero_camiseta (int): El número de camiseta del usuario a obtener
+
+        Returns:
+            Response: La respuesta HTTP con el resultado de la operación
+        """
+        try:
+            jugador = get_object_or_404(
+                Jugadores.objects.filter(
+                    numerocamisetajugador=numero_camiseta
+                ).exclude(jugadoractivo=False)
+            )
+            if not jugador:
+                return error_response("No se pudo obtener el jugador.", "Jugador no encontrado.", status.HTTP_404_NOT_FOUND)
+            return success_response(
+                "Jugador obtenido correctamente",
+                JugadorSerializer(jugador).data,
+                status.HTTP_200_OK)
+        except Http404 as http_404:
+            return error_response("No se pudo obtener el jugador.", "Jugador no encontrado.", status.HTTP_404_NOT_FOUND)
         except Exception as err:
             return error_response("No se pudo obtener el jugador.", str(err), status.HTTP_400_BAD_REQUEST)
 

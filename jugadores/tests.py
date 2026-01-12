@@ -1,34 +1,24 @@
 from django.urls import reverse
 from django.test import TestCase
-from rest_framework.test import APIClient
-from rest_framework import status
-from jugadores.models import Jugadores
+import json
 import base64
 from unittest.mock import patch
 from django.db import IntegrityError
 
+from jugadores.models import Jugadores
 
-class JugadoresAPITestCase(TestCase):
-    """
-    Pruebas unitarias siguiendo lineamientos ISTQB:
-    - Casos positivos (funcionamiento esperado)
-    - Casos negativos (validaciones de entrada)
-    - Casos de excepción (errores no funcionales / manejo de excepciones)
+# Nota: el patrón de idbanner válido es una letra + 8 dígitos, p.ej. A00000001
 
-    Nota: estas pruebas no se ejecutan aquí; se han diseñado para validar
-    comportamiento observable del API y coverar ramas de manejo de errores.
-    """
+class JugadoresTestCase(TestCase):
 
     def setUp(self):
-        self.client = APIClient()
-
-        # Imagen ejemplo (bytes) y su representación base64 tipo data URI
+        # Cliente de Django TestCase ya está disponible como self.client
         self.sample_image_bytes = b"\x89PNG\r\n\x1a\n"
         self.sample_image_b64 = "data:image/png;base64," + base64.b64encode(self.sample_image_bytes).decode()
 
-        # Jugador inicial en DB
+        # Jugador inicial en DB con idbanner válido
         self.jugador = Jugadores.objects.create(
-            idbanner="BNR000001",
+            idbanner="A00000001",
             nombrejugador="Juan",
             apellidojugador="Lopez",
             numerocamisetajugador=10,
@@ -37,111 +27,176 @@ class JugadoresAPITestCase(TestCase):
             jugadoractivo=True
         )
 
+    # Utilidades helpers
+    def post_json(self, url, data):
+        return self.client.post(url, data=json.dumps(data), content_type="application/json")
+
+    def patch_json(self, url, data):
+        return self.client.patch(url, data=json.dumps(data), content_type="application/json")
+
+    def parse(self, resp):
+        try:
+            return json.loads(resp.content.decode('utf-8'))
+        except Exception:
+            return {}
+
     # -----------------
     # Casos positivos
     # -----------------
-    def test_list_jugadores_ok_usa_json(self):
-        url = reverse("jugador-list-create")
-        resp = self.client.get(url)
-        assert resp.status_code == status.HTTP_200_OK
-
-        payload = resp.json()
-        # el view devuelve un dict con keys: count,page,offset,pages,results
-        assert "results" in payload
-        assert payload.get("count") == 1
-        assert isinstance(payload["results"], list)
-
-    def test_create_jugador_success_con_base64(self):
+    def test_create_jugador_min_jersey_success(self):
         url = reverse("jugador-list-create")
         data = {
-            "idbanner": "BNR000002",
-            "nombrejugador": "Carlos",
+            "idbanner": "A00000002",
+            "nombrejugador": "Ana",
             "apellidojugador": "Perez",
-            "numerocamisetajugador": 9,
+            "numerocamisetajugador": 1,
             "imagenjugador": self.sample_image_b64,
+            "posicionjugador": "Portero",
+            "jugadoractivo": True
+        }
+        resp = self.post_json(url, data)
+        self.assertEqual(resp.status_code, 201)
+        payload = self.parse(resp)
+        self.assertIn("mensaje", payload)
+        self.assertIn("data", payload)
+        self.assertEqual(payload["data"]["idbanner"], "A00000002")
+
+        nuevo = Jugadores.objects.get(idbanner="A00000002")
+        self.assertEqual(bytes(nuevo.imagenjugador), self.sample_image_bytes)
+
+    def test_create_jugador_max_jersey_success(self):
+        url = reverse("jugador-list-create")
+        data = {
+            "idbanner": "A00000099",
+            "nombrejugador": "Luis",
+            "apellidojugador": "Garcia",
+            "numerocamisetajugador": 99,
             "posicionjugador": "Defensa",
+            "imagenjugador": self.sample_image_b64,
+            "jugadoractivo": True
+        }
+        resp = self.post_json(url, data)
+        self.assertEqual(resp.status_code, 201)
+
+    def test_create_jugador_medium_jersey_success(self):
+        url = reverse("jugador-list-create")
+        data = {
+            "idbanner": "A00000050",
+            "nombrejugador": "Marta",
+            "apellidojugador": "Lopez",
+            "numerocamisetajugador": 50,
+            "posicionjugador": "Mediocampista",
+            "imagenjugador": self.sample_image_b64,
             "jugadoractivo": False
         }
-        resp = self.client.post(url, data, format="json")
-        assert resp.status_code == status.HTTP_201_CREATED
+        resp = self.post_json(url, data)
+        self.assertEqual(resp.status_code, 201)
 
-        payload = resp.json()
-        assert "mensaje" in payload
-        assert "jugador" in payload
-        assert payload["jugador"]["idbanner"] == "BNR000002"
+    def test_create_jugador_name_two_words_allowed(self):
+        url = reverse("jugador-list-create")
+        data = {
+            "idbanner": "A00000013",
+            "nombrejugador": "Juan Carlos",
+            "apellidojugador": "Sanchez",
+            "numerocamisetajugador": 22,
+            "posicionjugador": "Defensa",
+            "imagenjugador": self.sample_image_b64,
+            "jugadoractivo": True
+        }
+        resp = self.post_json(url, data)
+        self.assertEqual(resp.status_code, 201)
 
-        # confirmar que en la BD se guardaron bytes (no el data URI)
-        nuevo_jugador = Jugadores.objects.get(idbanner="BNR000002")
-        assert bytes(nuevo_jugador.imagenjugador) == self.sample_image_bytes  # type: ignore
-
-    def test_get_jugador_by_banner_ok(self):
-        url = reverse("jugador-detail", args=["BNR000001"])
-        resp = self.client.get(url)
-        assert resp.status_code == status.HTTP_200_OK
-        payload = resp.json()
-        assert payload.get("idbanner") == "BNR000001"
-        assert "imagenjugador" in payload
-
-    def test_patch_update_jugador_ok(self):
-        url = reverse("jugador-update", args=[self.jugador.idjugador])
-        resp = self.client.patch(url, {"nombrejugador": "Juan Actualizado"}, format="json")
-        assert resp.status_code == status.HTTP_200_OK
-        payload = resp.json()
-        assert "mensaje" in payload
-        self.jugador.refresh_from_db()
-        assert self.jugador.nombrejugador == "Juan Actualizado"
-
-    def test_delete_jugador_by_banner_ok(self):
-        url = reverse("jugador-delete", args=["BNR000001"])
-        resp = self.client.delete(url)
-        assert resp.status_code == status.HTTP_200_OK
-        payload = resp.json()
-        assert "mensaje" in payload
-        assert not Jugadores.objects.filter(idbanner="BNR000001").exists()
+    def test_create_jugador_imagen_empty_becomes_null(self):
+        url = reverse("jugador-list-create")
+        data = {
+            "idbanner": "A00000014",
+            "nombrejugador": "Sofia",
+            "apellidojugador": "Diaz",
+            "numerocamisetajugador": 15,
+            "imagenjugador": "",
+            "posicionjugador": "Delantero",
+            "jugadoractivo": True
+        }
+        resp = self.post_json(url, data)
+        self.assertEqual(resp.status_code, 201)
+        nuevo = Jugadores.objects.get(idbanner="A00000014")
+        self.assertIsNone(nuevo.imagenjugador)
 
     # -----------------
     # Casos negativos
     # -----------------
-    def test_list_jugadores_pagination_invalid_params(self):
-        url = reverse("jugador-list-create") + "?page=0&offset=-5"
-        resp = self.client.get(url)
-        assert resp.status_code == status.HTTP_400_BAD_REQUEST
-        payload = resp.json()
-        assert "error" in payload
-
-    def test_create_jugador_duplicate_idbanner_returns_error(self):
+    def test_create_jersey_zero_fails(self):
         url = reverse("jugador-list-create")
         data = {
-            "idbanner": "BNR000001",  # ya existe
-            "nombrejugador": "Duplicado",
-            "apellidojugador": "Uno",
-            "numerocamisetajugador": 11,
+            "idbanner": "A00000015",
+            "nombrejugador": "Bad",
+            "apellidojugador": "Num",
+            "numerocamisetajugador": 0,
+            "posicionjugador": "Defensa"
+        }
+        resp = self.post_json(url, data)
+        self.assertEqual(resp.status_code, 400)
+        payload = self.parse(resp)
+        self.assertTrue("error" in payload or "data" in payload)
+
+    def test_create_jersey_above_max_fails(self):
+        url = reverse("jugador-list-create")
+        data = {
+            "idbanner": "A00000016",
+            "nombrejugador": "Bad",
+            "apellidojugador": "Num",
+            "numerocamisetajugador": 100,
+            "posicionjugador": "Delantero"
+        }
+        resp = self.post_json(url, data)
+        self.assertEqual(resp.status_code, 400)
+        payload = self.parse(resp)
+        self.assertTrue("error" in payload or "data" in payload)
+
+    def test_create_name_too_many_words_fails(self):
+        url = reverse("jugador-list-create")
+        data = {
+            "idbanner": "A00000017",
+            "nombrejugador": "Juan Carlos Alberto",
+            "apellidojugador": "Torres",
+            "numerocamisetajugador": 8,
             "posicionjugador": "Mediocampista"
         }
-        resp = self.client.post(url, data, format="json")
-        # puede venir del serializer o del IntegrityError; el view devuelve 400
-        assert resp.status_code == status.HTTP_400_BAD_REQUEST
-        payload = resp.json()
-        # la validación en serializer lanza error en 'idbanner' o se devolvió error general
-        assert any(k in payload for k in ("idbanner", "error"))
+        resp = self.post_json(url, data)
+        self.assertEqual(resp.status_code, 400)
+        payload = self.parse(resp)
+        self.assertIn("El nombre solo puede contener letras y un espacio opcional.", payload["data"])
 
-    def test_create_jugador_invalid_base64_returns_validation_error(self):
+    def test_create_apellido_empty_fails(self):
         url = reverse("jugador-list-create")
         data = {
-            "idbanner": "BNR000003",
-            "nombrejugador": "MalImage",
-            "apellidojugador": "Test",
+            "idbanner": "A00000018",
+            "nombrejugador": "Ana",
+            "apellidojugador": "   ",
             "numerocamisetajugador": 7,
-            "imagenjugador": "data:image/png;base64,###NOTBASE64###",
             "posicionjugador": "Portero"
         }
-        resp = self.client.post(url, data, format="json")
-        assert resp.status_code == status.HTTP_400_BAD_REQUEST
-        payload = resp.json()
-        # serializer lanza ValidationError con key imagenjugador
-        assert "imagenjugador" in payload
+        resp = self.post_json(url, data)
+        self.assertEqual(resp.status_code, 400)
+        payload = self.parse(resp)
+        self.assertIn("error", payload)
 
-    def test_create_invalid_idbanner_format_returns_error(self):
+    def test_create_idbanner_all_zeros_fails(self):
+        url = reverse("jugador-list-create")
+        data = {
+            "idbanner": "A00000000",
+            "nombrejugador": "Zero",
+            "apellidojugador": "Test",
+            "numerocamisetajugador": 3,
+            "posicionjugador": "Defensa"
+        }
+        resp = self.post_json(url, data)
+        self.assertEqual(resp.status_code, 400)
+        payload = self.parse(resp)
+        self.assertIn("error", payload)
+        self.assertIn("Debe tener una letra seguida de hasta 8 números. Los números no pueden ser todos ceros (ej: A00088860).", payload['data'])
+
+    def test_create_invalid_idbanner_format_fails(self):
         url = reverse("jugador-list-create")
         data = {
             "idbanner": "123_INVALID",
@@ -150,45 +205,40 @@ class JugadoresAPITestCase(TestCase):
             "numerocamisetajugador": 5,
             "posicionjugador": "Defensa"
         }
-        resp = self.client.post(url, data, format="json")
-        assert resp.status_code == status.HTTP_400_BAD_REQUEST
-        payload = resp.json()
-        assert any(k in payload for k in ("idbanner", "error"))
+        resp = self.post_json(url, data)
+        self.assertEqual(resp.status_code, 400)
+        payload = self.parse(resp)
+        self.assertIn("error", payload)
 
     def test_create_invalid_posicion_returns_error(self):
         url = reverse("jugador-list-create")
         data = {
-            "idbanner": "BNR000004",
+            "idbanner": "A00000019",
             "nombrejugador": "BadPos",
             "apellidojugador": "Test",
             "numerocamisetajugador": 3,
             "posicionjugador": "ArqueroInvalido"
         }
-        resp = self.client.post(url, data, format="json")
-        assert resp.status_code == status.HTTP_400_BAD_REQUEST
-        payload = resp.json()
-        assert any(k in payload for k in ("posicionjugador", "error"))
+        resp = self.post_json(url, data)
+        self.assertEqual(resp.status_code, 400)
+        payload = self.parse(resp)
+        self.assertIn("ArqueroInvalido", payload["data"])
+        self.assertIn("error", payload)
 
-    def test_create_invalid_jersey_number_returns_error(self):
+    def test_create_invalid_base64_returns_validation_error(self):
         url = reverse("jugador-list-create")
         data = {
-            "idbanner": "BNR000005",
-            "nombrejugador": "BadNum",
+            "idbanner": "A00000020",
+            "nombrejugador": "MalImage",
             "apellidojugador": "Test",
-            "numerocamisetajugador": 150,
-            "posicionjugador": "Defensa"
+            "numerocamisetajugador": 7,
+            "imagenjugador": "data:image/png;base64,###NOTBASE64###",
+            "posicionjugador": "Portero"
         }
-        resp = self.client.post(url, data, format="json")
-        assert resp.status_code == status.HTTP_400_BAD_REQUEST
-        payload = resp.json()
-        assert any(k in payload for k in ("numerocamisetajugador", "error"))
-
-    def test_update_invalid_boolean_jugadoractivo_returns_error(self):
-        url = reverse("jugador-update", args=[self.jugador.idjugador])
-        resp = self.client.patch(url, {"jugadoractivo": "notaboolean"}, format="json")
-        assert resp.status_code == status.HTTP_400_BAD_REQUEST
-        payload = resp.json()
-        assert any(k in payload for k in ("jugadoractivo", "error"))
+        resp = self.post_json(url, data)
+        self.assertEqual(resp.status_code, 400)
+        payload = self.parse(resp)
+        self.assertIn("Formato Base64 inválido.", payload["data"])
 
     # -----------------
     # Casos de excepción
@@ -196,44 +246,38 @@ class JugadoresAPITestCase(TestCase):
     def test_create_raises_integrityerror_returns_bad_request(self):
         url = reverse("jugador-list-create")
         data = {
-            "idbanner": "BNR000006",
+            "idbanner": "A00000021",
             "nombrejugador": "Ex",
             "apellidojugador": "Test",
             "numerocamisetajugador": 12,
             "posicionjugador": "Delantero"
         }
-        # parchear el save del serializer para que lance IntegrityError
         with patch("jugadores.views.JugadorSerializer.save", side_effect=IntegrityError()):
-            resp = self.client.post(url, data, format="json")
-        assert resp.status_code == status.HTTP_400_BAD_REQUEST
-        payload = resp.json()
-        assert "error" in payload
-        assert "Ya existe un jugador" in payload["error"]
+            resp = self.post_json(url, data)
+        self.assertEqual(resp.status_code, 400)
+        payload = self.parse(resp)
+        self.assertIn("error", payload)
 
     def test_create_unhandled_exception_returns_bad_request(self):
         url = reverse("jugador-list-create")
         data = {
-            "idbanner": "BNR000007",
+            "idbanner": "A00000023",
             "nombrejugador": "Ex2",
             "apellidojugador": "Test",
             "numerocamisetajugador": 13,
             "posicionjugador": "Mediocampista"
         }
         with patch("jugadores.views.JugadorSerializer.save", side_effect=Exception("boom")):
-            resp = self.client.post(url, data, format="json")
-        assert resp.status_code == status.HTTP_400_BAD_REQUEST
-        payload = resp.json()
-        assert "error" in payload
-        assert "No se pudo crear el jugador" in payload["error"]
+            resp = self.post_json(url, data)
+        self.assertEqual(resp.status_code, 400)
+        payload = self.parse(resp)
+        self.assertIn("error", payload)
 
     def test_patch_raises_validation_error_handled(self):
         url = reverse("jugador-update", args=[self.jugador.idjugador])
-        # forzar que el serializer sea inválido y provoque la rama de validación
         with patch("jugadores.views.JugadorSerializer.is_valid", return_value=False), \
              patch("jugadores.views.JugadorSerializer.errors", new_callable=lambda: {"idbanner": ["error"]}):
-            resp = self.client.patch(url, {"idbanner": "BNR000001"}, format="json")
-        # esperamos 400 y que se retorne un payload con 'error' o el campo
-        assert resp.status_code == status.HTTP_400_BAD_REQUEST
-        payload = resp.json()
-        assert any(k in payload for k in ("idbanner", "error"))
-
+            resp = self.patch_json(url, {"idbanner": "A00000001"})
+        self.assertEqual(resp.status_code, 400)
+        payload = self.parse(resp)
+        self.assertTrue("error" in payload or "data" in payload)

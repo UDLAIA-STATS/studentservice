@@ -1,3 +1,3 @@
 from .format_serializer import format_serializer_errors
 from .responses import success_response, error_response, pagination_response
-from .paginate import paginate_queryset
+from .pagination import paginate_queryset

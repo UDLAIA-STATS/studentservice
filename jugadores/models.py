@@ -1,7 +1,7 @@
 from django.db import models
 
 # Create your models here.
-class Jugadores (models.Model):
+class Jugadores(models.Model):
     idjugador = models.AutoField(primary_key=True)
     idbanner = models.CharField(max_length=9, null=False, unique=True, error_messages={
         'unique': "Ya existe un jugador asociado a ese ID Banner."
