@@ -21,5 +21,6 @@ from jugadores import views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/', include('jugadores.urls')),
+    path('players/', include('jugadores.urls')),
+    path('stats/', include('stats.urls')),
 ]
