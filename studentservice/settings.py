@@ -53,6 +53,19 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'studentservice.urls'
 
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {"class": "logging.StreamHandler"},
+    },
+    "loggers": {
+        "kafka": {"level": "INFO", "handlers": ["console"]},
+        "events": {"level": "DEBUG", "handlers": ["console"]},
+    },
+}
+
+
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
@@ -85,6 +98,13 @@ DATABASES = {
     }
 }
 
+KAFKA_CONFIG = {
+    "BROKER": config("KAFKA_BROKER"),
+    "GROUP_ID": config("KAFKA_GROUP_ID"),
+    "ALLOWED_TOPICS": {
+        "write.stats",
+    }
+}
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators

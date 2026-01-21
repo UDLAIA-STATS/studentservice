@@ -16,7 +16,7 @@ COPY . /app
 COPY docker/entrypoint_student.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
-EXPOSE 8010
+EXPOSE 8030
 
 # EntryPoint del contenedor API
 CMD ["/app/entrypoint.sh"]
