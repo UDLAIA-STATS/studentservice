@@ -15,7 +15,7 @@ class EventType(models.TextChoices):
 
 class PlayerEvents(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    player_id = models.BigIntegerField(db_index=True)
+    player_id = models.BigIntegerField(db_index=True, null=True, blank=True)  # Agregado null=True, blank=True
     match_id = models.IntegerField(db_index=True)
     event_type = models.CharField(max_length=20, choices=EventType.choices)
     timestamp_ms = models.BigIntegerField(null=True, blank=True)
@@ -34,7 +34,7 @@ class PlayerEvents(models.Model):
 
 class PlayerDistanceHistory(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    player_id = models.BigIntegerField(db_index=True)
+    player_id = models.BigIntegerField(db_index=True, null=True, blank=True)  # Agregado null=True, blank=True
     match_id = models.IntegerField(db_index=True)
     total_distance_km = models.DecimalField(
         max_digits=10, decimal_places=3, validators=[MinValueValidator(0)]
@@ -48,7 +48,7 @@ class PlayerDistanceHistory(models.Model):
 
 class PlayerHeatmaps(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    player_id = models.BigIntegerField(db_index=True, blank=False)
+    player_id = models.BigIntegerField(db_index=True, null=True, blank=True)
     match_id = models.IntegerField(db_index=True, blank=False)
     heatmap_url = models.URLField(blank=True)
     resolution_w = models.PositiveIntegerField(null=True, blank=True)
@@ -62,15 +62,14 @@ class PlayerHeatmaps(models.Model):
         db_table = 'football"."player_heatmaps'
         indexes = [models.Index(fields=["player_id", "match_id"])]
 
-
 class PlayerStatsConsolidated(models.Model):
     id = models.BigAutoField(primary_key=True)
-    player_id = models.BigIntegerField(db_index=True)
+    player_id = models.BigIntegerField(db_index=True, null=True, blank=True)
     match_id = models.IntegerField(db_index=True)
 
     shirt_number = models.PositiveSmallIntegerField(null=True, blank=True)
-    team = models.TextField(blank=True)
-    team_color = models.TextField(blank=True)
+    team = models.TextField(blank=True, null=True)
+    team_color = models.TextField(blank=True, null=True)
 
     passes = models.PositiveIntegerField(default=0)
     shots_on_target = models.PositiveIntegerField(default=0)
