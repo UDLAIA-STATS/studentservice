@@ -18,7 +18,7 @@ rs.default_port = 8030
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-vqldfqjpb%@(r1=j3bp$@4r&pojyr04(%x62nqjn@wg@bqu$gv'
+SECRET_KEY = config('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=False, cast=bool)
@@ -53,6 +53,19 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'studentservice.urls'
 
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {"class": "logging.StreamHandler"},
+    },
+    "loggers": {
+        "kafka": {"level": "INFO", "handlers": ["console"]},
+        "events": {"level": "DEBUG", "handlers": ["console"]},
+    },
+}
+
+
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
@@ -85,6 +98,13 @@ DATABASES = {
     }
 }
 
+KAFKA_CONFIG = {
+    "BROKER": config("KAFKA_BROKER"),
+    "GROUP_ID": config("KAFKA_GROUP_ID"),
+    "ALLOWED_TOPICS": {
+        "write.stats",
+    }
+}
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators

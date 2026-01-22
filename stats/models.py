@@ -16,7 +16,7 @@ class EventType(models.TextChoices):
 class PlayerStatsConsolidated(models.Model):
     id = models.BigAutoField(primary_key=True)
     
-    player_id = models.BigIntegerField(db_index=True)  # ✅ NUEVO - ID del jugador
+    player_id = models.BigIntegerField(db_index=True)
     match_id = models.IntegerField(db_index=True)
 
     shirt_number = models.PositiveSmallIntegerField(null=True, blank=True)
