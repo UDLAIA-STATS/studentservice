@@ -1,0 +1,86 @@
+name: Audit SQL Injection with SQLMap
+
+on:
+  push:
+    branches: [ develop, main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  DEBUG: True
+  DB_ENGINE: django.db.backends.postgresql
+  ALLOWED_HOSTS: localhost,127.0.0.1
+  POSTGRES_HOST: localhost
+  POSTGRES_PORT: 5440
+  POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+  POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+  POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+  SECRET_KEY: ${{ secrets.SECRET_KEY }}
+  LAUNCHDARKLY_SDK_KEY: ${{ secrets.LAUNCHDARKLY_SDK_KEY }}
+  LDCLIENT_ID: ${{ secrets.LDCLIENT_ID }}
+
+jobs:
+  sqlmap:
+    runs-on: ubuntu-latest
+    name: Detección de inyecciones SQL con SQLMap
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ${{ env.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ env.POSTGRES_DB }}
+        ports:
+          - 5440:5432
+        options: >-
+          --health-cmd="pg_isready -U django -d django_db"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Prepare environment
+        run: |
+          echo "START_DATE=$(date +'%d-%m-%YT%H-%M-%S-%Z')" >> $GITHUB_ENV
+          echo "START_TIMESTAMP=$(date +'%s')" >> $GITHUB_ENV
+          TMP_TARGET="https://blackfox-security.com"
+          echo "TARGET=$TMP_TARGET" >> $GITHUB_ENV
+
+      - name: Levantar aplicación Django (para que SQLMap tenga endpoints)
+        env:
+          DEBUG: True
+          SECRET_KEY: ${{ env.SECRET_KEY }}
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5440
+          POSTGRES_DB: ${{ env.POSTGRES_DB }}
+          POSTGRES_USER: ${{ env.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+        run: |
+          pip install -r requirements.txt
+          python manage.py migrate --noinput
+          python manage.py runserver 0.0.0.0:8000 &
+          sleep 10   # dar tiempo a que arranque
+
+      - name: Scan with sqlmap
+        uses: thereisnotime/action-sqlmap@master
+        with:
+          url: "https://blackfox-security.com/vuln.php?id=1"
+          additional_args: "--batch --crawl=2 --random-agent --forms --level=5 --risk=3 --flush-session -o --output-dir=sqlmap-output || true "
+
+      - name: Subir resultados de SQLMap
+        uses: actions/upload-artifact@v4
+        with:
+          name: sqlmap-report
+          path: sqlmap-output/
+      
+      - name: Commit and push changes
+        uses: EndBug/add-and-commit@v9
+        with:
+          author_name: GitHub Actions
+          author_email: 41898282+github-actions[bot]@users.noreply.github.com
+          message: "👷 chore(sqlmap): add report for ${{ env.TARGET }}-${{ env.START_DATE }}-${{ env.START_TIMESTAMP }}"
+          add: "./reports/web/*"
+          pull: "--rebase --autostash"
