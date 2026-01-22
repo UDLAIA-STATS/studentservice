@@ -2,6 +2,7 @@ import uuid
 from django.db import models
 from django.core.validators import MinValueValidator
 from django.db.models import JSONField
+from jugadores.models import Jugadores
 
 class EventType(models.TextChoices):
     PASS = "pass", "Pass"
@@ -12,65 +13,15 @@ class EventType(models.TextChoices):
     INTERCEPTION = "interception", "Interception"
 
 
-
-class PlayerEvents(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    player_id = models.BigIntegerField(db_index=True)
-    match_id = models.IntegerField(db_index=True)
-    event_type = models.CharField(max_length=20, choices=EventType.choices)
-    timestamp_ms = models.BigIntegerField(null=True, blank=True)
-    metadata = JSONField(default=dict, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        db_table = 'football"."player_events'
-        indexes = [
-            models.Index(fields=["player_id", "match_id"]),
-            models.Index(fields=["match_id", "event_type"]),
-            models.Index(fields=["metadata"], name="idx_events_metadata_gin"),
-        ]
-
-
-class PlayerDistanceHistory(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    player_id = models.BigIntegerField(db_index=True)
-    match_id = models.IntegerField(db_index=True)
-    total_distance_km = models.DecimalField(
-        max_digits=10, decimal_places=3, validators=[MinValueValidator(0)]
-    )
-    calculated_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        db_table = 'football"."player_distance_history'
-        indexes = [models.Index(fields=["player_id", "match_id"])]
-
-
-class PlayerHeatmaps(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    player_id = models.BigIntegerField(db_index=True, blank=False)
-    match_id = models.IntegerField(db_index=True, blank=False)
-    heatmap_url = models.URLField(blank=True)
-    resolution_w = models.PositiveIntegerField(null=True, blank=True)
-    resolution_h = models.PositiveIntegerField(null=True, blank=True)
-    file_size_bytes = models.BigIntegerField(null=True, blank=True)
-    mime_type = models.TextField(default="image/png")
-    generated_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        db_table = 'football"."player_heatmaps'
-        indexes = [models.Index(fields=["player_id", "match_id"])]
-
-
 class PlayerStatsConsolidated(models.Model):
     id = models.BigAutoField(primary_key=True)
+    
     player_id = models.BigIntegerField(db_index=True)
     match_id = models.IntegerField(db_index=True)
 
     shirt_number = models.PositiveSmallIntegerField(null=True, blank=True)
-    team = models.TextField(blank=True)
-    team_color = models.TextField(blank=True)
+    team = models.TextField(blank=True, null=True)
+    team_color = models.TextField(blank=True, null=True)
 
     passes = models.PositiveIntegerField(default=0)
     shots_on_target = models.PositiveIntegerField(default=0)
@@ -93,8 +44,42 @@ class PlayerStatsConsolidated(models.Model):
 
     class Meta:
         db_table = 'football"."player_stats_consolidated'
-        unique_together = ("player_id", "match_id")
+        unique_together = ("player_id", "match_id")  # ✅ CAMBIAR a player_id
         indexes = [
+            models.Index(fields=["player_id", "match_id"]),  # ✅ CAMBIAR a player_id
             models.Index(fields=["match_id"]),
-            models.Index(fields=["player_id", "match_id"]),
         ]
+        
+
+
+# Modelo que se utiliza para almacenar las estadísticas históricas acumuladas de los jugadores
+class PlayerStatsHist(models.Model):
+    id = models.BigAutoField(primary_key=True)
+
+    jugador = models.OneToOneField(
+        Jugadores,
+        on_delete=models.CASCADE,
+        related_name="estadisticas_generales"
+    )
+
+    partidos_jugados = models.PositiveIntegerField(default=0)
+
+    total_passes = models.PositiveIntegerField(default=0)
+    total_shots_on_target = models.PositiveIntegerField(default=0)
+    total_goals = models.PositiveIntegerField(default=0)
+
+    total_distance_km = models.DecimalField(
+        max_digits=12, decimal_places=3, default=0
+    )
+    total_possession_time_s = models.DecimalField(
+        max_digits=14, decimal_places=2, default=0
+    )
+
+    avg_speed_global_kmh = models.DecimalField(
+        max_digits=6, decimal_places=2, default=0
+    )
+
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'football"."player_stats_hist'
