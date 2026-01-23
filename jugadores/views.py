@@ -9,7 +9,7 @@ from rest_framework import status
 
 
 from .models import Jugadores
-from .serializers import JugadorSerializer
+from .serializers import JugadorSerializer, JugadorUpdateSerializer
 from shared import (
     paginate_queryset,
     error_response,
@@ -161,16 +161,16 @@ class JugadorUpdateView(APIView):
         """
         try:
             jugador = get_object_or_404(Jugadores, pk=pk)
-            serializer = JugadorSerializer(jugador, data=request.data, partial=True, context={'request': request})
+            serializer = JugadorUpdateSerializer(jugador, data=request.data, partial=True, context={'request': request})
             if not serializer.is_valid():
                 return error_response(
-                    "Error de validación al crear el jugador.",
+                    "Error de validación al actualizar el jugador.",
                     format_serializer_errors(serializer.errors),
                     status.HTTP_400_BAD_REQUEST)
             jugador_actualizado = serializer.save()
             return success_response(
                 "Jugador actualizado correctamente",
-                JugadorSerializer(jugador_actualizado).data,
+                JugadorUpdateSerializer(jugador_actualizado).data,
                 status.HTTP_200_OK)
         except IntegrityError:
             return error_response("Ya existe un jugador con los mismos datos.", None, status.HTTP_400_BAD_REQUEST)

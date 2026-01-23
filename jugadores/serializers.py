@@ -96,7 +96,7 @@ class JugadorSerializer (serializers.ModelSerializer):
             
             if query.exists():
                 raise serializers.ValidationError(
-                    "El número ya está asignado a otro jugador activo."
+                    "El número de camiseta ya está asignado a otro jugador activo."
                 )
 
         return attrs
