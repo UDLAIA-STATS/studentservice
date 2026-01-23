@@ -26,6 +26,7 @@ class PlayerStatsConsolidated(models.Model):
     passes = models.PositiveIntegerField(default=0)
     shots_on_target = models.PositiveIntegerField(default=0)
     has_goal = models.BooleanField(default=False)
+    goals = models.PositiveIntegerField(default=0)
 
     avg_speed_kmh = models.DecimalField(
         max_digits=6, decimal_places=2, null=True, blank=True

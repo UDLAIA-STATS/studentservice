@@ -158,6 +158,18 @@ class PlayerStatsInputSerializer(serializers.Serializer):
             'null': 'La distancia recorrida puede ser nula si no se especifica.'
         }
     )
+
+    goals = serializers.IntegerField(
+        required=False, 
+        allow_null=True,
+        default=0, 
+        min_value=0,
+        error_messages={
+            'invalid': 'El número de goles debe ser un número válido.',
+            'min_value': 'El número de goles no puede ser negativo.',
+            'null': 'El número de goles puede ser nulo si no se especifica.'
+        }
+    )
     
     # Agregado: Campo km_run que aparece en tu JSON
     km_run = serializers.DecimalField(

@@ -56,6 +56,7 @@ def handle_stats(message: dict) -> bool:
                 'passes': message.get('passes', 0),
                 'shots_on_target': message.get('shots_on_target', 0),
                 'has_goal': message.get('has_goal', 0),
+                'goals': message.get('goals', 0),
                 'distance_km': message.get('distance_km', 0.0),
                 'avg_possession_time_s': message.get('avg_possession_time_s', 0),
                 'avg_speed_kmh': message.get('avg_speed_kmh', 0.0),

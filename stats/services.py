@@ -39,14 +39,7 @@ def actualizar_estadisticas_generales(shirt_number: int) -> None:
         partidos=Count("match_id", distinct=True),
         passes=Sum("passes"),
         shots=Sum("shots_on_target"),
-        goals=Sum(
-            Case(
-                When(has_goal=True, then=1),
-                When(has_goal=False, then=0),
-                default=0,
-                output_field=IntegerField()
-            )
-        ),
+        goals=Sum("goals"),
         distance=Sum("distance_km"),
         possession=Sum("avg_possession_time_s"),
         avg_speed=Avg("avg_speed_kmh"),
