@@ -1,5 +1,5 @@
 from django.db import transaction
-from django.db.models import Sum, Avg, Count, Case, When, IntegerField
+from django.db.models import Sum, Avg, Count
 from jugadores.models import Jugadores
 from .models import PlayerStatsConsolidated, PlayerStatsHist
 
@@ -7,8 +7,7 @@ from .models import PlayerStatsConsolidated, PlayerStatsHist
 def get_jugador_activo_por_camiseta(shirt_number: int):
     """Obtiene jugador activo por número de camiseta"""
     return Jugadores.objects.filter(
-        numerocamisetajugador=shirt_number,
-        jugadoractivo=True
+        numerocamisetajugador=shirt_number, jugadoractivo=True
     ).first()
 
 
@@ -16,7 +15,7 @@ def get_jugador_activo_por_camiseta(shirt_number: int):
 def actualizar_estadisticas_generales(shirt_number: int) -> None:
     """
     Actualiza estadísticas históricas basadas en stats consolidadas.
-    
+
     Recibe el número de camiseta del jugador y busca sus estadísticas
     consolidadas por ese número.
     """
@@ -24,13 +23,7 @@ def actualizar_estadisticas_generales(shirt_number: int) -> None:
     if not jugador:
         return
 
-    # ✅ Filtrar por player_id (más eficiente y exacto)
-    # Usamos player_id en lugar de shirt_number porque:
-    # - Un jugador puede cambiar de número
-    # - Evita ambigüedad si dos equipos usan el mismo número
-    qs = PlayerStatsConsolidated.objects.filter(
-        player_id=jugador.idjugador
-    )
+    qs = PlayerStatsConsolidated.objects.filter(player_id=jugador.idjugador)
 
     if not qs.exists():
         return
@@ -55,5 +48,5 @@ def actualizar_estadisticas_generales(shirt_number: int) -> None:
             "total_distance_km": agg["distance"] or 0,
             "total_possession_time_s": agg["possession"] or 0,
             "avg_speed_global_kmh": agg["avg_speed"] or 0,
-        }
+        },
     )

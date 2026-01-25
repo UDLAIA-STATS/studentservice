@@ -7,16 +7,15 @@ from django.db import IntegrityError
 
 from jugadores.models import Jugadores
 
-# Nota: el patrón de idbanner válido es una letra + 8 dígitos, p.ej. A00000001
 
 class JugadoresTestCase(TestCase):
-
     def setUp(self):
-        # Cliente de Django TestCase ya está disponible como self.client
         self.sample_image_bytes = b"\x89PNG\r\n\x1a\n"
-        self.sample_image_b64 = "data:image/png;base64," + base64.b64encode(self.sample_image_bytes).decode()
+        self.sample_image_b64 = (
+            "data:image/png;base64,"
+            + base64.b64encode(self.sample_image_bytes).decode()
+        )
 
-        # Jugador inicial en DB con idbanner válido
         self.jugador = Jugadores.objects.create(
             idbanner="A00000001",
             nombrejugador="Juan",
@@ -24,25 +23,25 @@ class JugadoresTestCase(TestCase):
             numerocamisetajugador=10,
             imagenjugador=self.sample_image_bytes,
             posicionjugador="Delantero",
-            jugadoractivo=True
+            jugadoractivo=True,
         )
 
-    # Utilidades helpers
     def post_json(self, url, data):
-        return self.client.post(url, data=json.dumps(data), content_type="application/json")
+        return self.client.post(
+            url, data=json.dumps(data), content_type="application/json"
+        )
 
     def patch_json(self, url, data):
-        return self.client.patch(url, data=json.dumps(data), content_type="application/json")
+        return self.client.patch(
+            url, data=json.dumps(data), content_type="application/json"
+        )
 
     def parse(self, resp):
         try:
-            return json.loads(resp.content.decode('utf-8'))
+            return json.loads(resp.content.decode("utf-8"))
         except Exception:
             return {}
 
-    # -----------------
-    # Casos positivos
-    # -----------------
     def test_create_jugador_min_jersey_success(self):
         url = reverse("jugador-list-create")
         data = {
@@ -52,7 +51,7 @@ class JugadoresTestCase(TestCase):
             "numerocamisetajugador": 1,
             "imagenjugador": self.sample_image_b64,
             "posicionjugador": "Portero",
-            "jugadoractivo": True
+            "jugadoractivo": True,
         }
         resp = self.post_json(url, data)
         self.assertEqual(resp.status_code, 201)
@@ -73,7 +72,7 @@ class JugadoresTestCase(TestCase):
             "numerocamisetajugador": 99,
             "posicionjugador": "Defensa",
             "imagenjugador": self.sample_image_b64,
-            "jugadoractivo": True
+            "jugadoractivo": True,
         }
         resp = self.post_json(url, data)
         self.assertEqual(resp.status_code, 201)
@@ -87,7 +86,7 @@ class JugadoresTestCase(TestCase):
             "numerocamisetajugador": 50,
             "posicionjugador": "Mediocampista",
             "imagenjugador": self.sample_image_b64,
-            "jugadoractivo": False
+            "jugadoractivo": False,
         }
         resp = self.post_json(url, data)
         self.assertEqual(resp.status_code, 201)
@@ -101,7 +100,7 @@ class JugadoresTestCase(TestCase):
             "numerocamisetajugador": 22,
             "posicionjugador": "Defensa",
             "imagenjugador": self.sample_image_b64,
-            "jugadoractivo": True
+            "jugadoractivo": True,
         }
         resp = self.post_json(url, data)
         self.assertEqual(resp.status_code, 201)
@@ -115,7 +114,7 @@ class JugadoresTestCase(TestCase):
             "numerocamisetajugador": 15,
             "imagenjugador": "",
             "posicionjugador": "Delantero",
-            "jugadoractivo": True
+            "jugadoractivo": True,
         }
         resp = self.post_json(url, data)
         self.assertEqual(resp.status_code, 201)
@@ -132,7 +131,7 @@ class JugadoresTestCase(TestCase):
             "nombrejugador": "Bad",
             "apellidojugador": "Num",
             "numerocamisetajugador": 0,
-            "posicionjugador": "Defensa"
+            "posicionjugador": "Defensa",
         }
         resp = self.post_json(url, data)
         self.assertEqual(resp.status_code, 400)
@@ -146,7 +145,7 @@ class JugadoresTestCase(TestCase):
             "nombrejugador": "Bad",
             "apellidojugador": "Num",
             "numerocamisetajugador": 100,
-            "posicionjugador": "Delantero"
+            "posicionjugador": "Delantero",
         }
         resp = self.post_json(url, data)
         self.assertEqual(resp.status_code, 400)
@@ -160,12 +159,15 @@ class JugadoresTestCase(TestCase):
             "nombrejugador": "Juan Carlos Alberto",
             "apellidojugador": "Torres",
             "numerocamisetajugador": 8,
-            "posicionjugador": "Mediocampista"
+            "posicionjugador": "Mediocampista",
         }
         resp = self.post_json(url, data)
         self.assertEqual(resp.status_code, 400)
         payload = self.parse(resp)
-        self.assertIn("El nombre solo puede contener letras y un espacio opcional.", payload["data"])
+        self.assertIn(
+            "El nombre solo puede contener letras y un espacio opcional.",
+            payload["data"],
+        )
 
     def test_create_apellido_empty_fails(self):
         url = reverse("jugador-list-create")
@@ -174,7 +176,7 @@ class JugadoresTestCase(TestCase):
             "nombrejugador": "Ana",
             "apellidojugador": "   ",
             "numerocamisetajugador": 7,
-            "posicionjugador": "Portero"
+            "posicionjugador": "Portero",
         }
         resp = self.post_json(url, data)
         self.assertEqual(resp.status_code, 400)
@@ -188,13 +190,17 @@ class JugadoresTestCase(TestCase):
             "nombrejugador": "Zero",
             "apellidojugador": "Test",
             "numerocamisetajugador": 3,
-            "posicionjugador": "Defensa"
+            "posicionjugador": "Defensa",
         }
         resp = self.post_json(url, data)
         self.assertEqual(resp.status_code, 400)
         payload = self.parse(resp)
         self.assertIn("error", payload)
-        self.assertIn("Debe tener una letra seguida de hasta 8 números. Los números no pueden ser todos ceros (ej: A00088860).", payload['data'])
+        self.assertIn(
+            "Debe tener una letra seguida de hasta 8 números."
+            "Los números no pueden ser todos ceros (ej: A00088860).",
+            payload["data"],
+        )
 
     def test_create_invalid_idbanner_format_fails(self):
         url = reverse("jugador-list-create")
@@ -203,7 +209,7 @@ class JugadoresTestCase(TestCase):
             "nombrejugador": "X",
             "apellidojugador": "Y",
             "numerocamisetajugador": 5,
-            "posicionjugador": "Defensa"
+            "posicionjugador": "Defensa",
         }
         resp = self.post_json(url, data)
         self.assertEqual(resp.status_code, 400)
@@ -217,7 +223,7 @@ class JugadoresTestCase(TestCase):
             "nombrejugador": "BadPos",
             "apellidojugador": "Test",
             "numerocamisetajugador": 3,
-            "posicionjugador": "ArqueroInvalido"
+            "posicionjugador": "ArqueroInvalido",
         }
         resp = self.post_json(url, data)
         self.assertEqual(resp.status_code, 400)
@@ -233,7 +239,7 @@ class JugadoresTestCase(TestCase):
             "apellidojugador": "Test",
             "numerocamisetajugador": 7,
             "imagenjugador": "data:image/png;base64,###NOTBASE64###",
-            "posicionjugador": "Portero"
+            "posicionjugador": "Portero",
         }
         resp = self.post_json(url, data)
         self.assertEqual(resp.status_code, 400)
@@ -250,9 +256,11 @@ class JugadoresTestCase(TestCase):
             "nombrejugador": "Ex",
             "apellidojugador": "Test",
             "numerocamisetajugador": 12,
-            "posicionjugador": "Delantero"
+            "posicionjugador": "Delantero",
         }
-        with patch("jugadores.views.JugadorSerializer.save", side_effect=IntegrityError()):
+        with patch(
+            "jugadores.views.JugadorSerializer.save", side_effect=IntegrityError()
+        ):
             resp = self.post_json(url, data)
         self.assertEqual(resp.status_code, 400)
         payload = self.parse(resp)
@@ -265,9 +273,11 @@ class JugadoresTestCase(TestCase):
             "nombrejugador": "Ex2",
             "apellidojugador": "Test",
             "numerocamisetajugador": 13,
-            "posicionjugador": "Mediocampista"
+            "posicionjugador": "Mediocampista",
         }
-        with patch("jugadores.views.JugadorSerializer.save", side_effect=Exception("boom")):
+        with patch(
+            "jugadores.views.JugadorSerializer.save", side_effect=Exception("boom")
+        ):
             resp = self.post_json(url, data)
         self.assertEqual(resp.status_code, 400)
         payload = self.parse(resp)
@@ -275,8 +285,13 @@ class JugadoresTestCase(TestCase):
 
     def test_patch_raises_validation_error_handled(self):
         url = reverse("jugador-update", args=[self.jugador.idjugador])
-        with patch("jugadores.views.JugadorSerializer.is_valid", return_value=False), \
-             patch("jugadores.views.JugadorSerializer.errors", new_callable=lambda: {"idbanner": ["error"]}):
+        with (
+            patch("jugadores.views.JugadorSerializer.is_valid", return_value=False),
+            patch(
+                "jugadores.views.JugadorSerializer.errors",
+                new_callable=lambda: {"idbanner": ["error"]},
+            ),
+        ):
             resp = self.patch_json(url, {"idbanner": "A00000001"})
         self.assertEqual(resp.status_code, 400)
         payload = self.parse(resp)
