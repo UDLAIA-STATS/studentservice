@@ -60,6 +60,7 @@ def handle_stats(message: dict) -> bool:
                 "distance_km": message.get("distance_km", 0.0),
                 "avg_possession_time_s": message.get("avg_possession_time_s", 0),
                 "avg_speed_kmh": message.get("avg_speed_kmh", 0.0),
+                "heatmap_image_path": message.get("heatmap_image_path", ""),
             },
         )
 
