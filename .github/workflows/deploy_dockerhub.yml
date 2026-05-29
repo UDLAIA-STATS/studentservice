@@ -101,6 +101,7 @@ jobs:
           POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           FRONTEND_URL: ${{ secrets.FRONTEND_URL }}
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
           API_PORT: 8030
         run: |
           docker build \

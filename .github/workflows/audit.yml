@@ -46,7 +46,7 @@ jobs:
         run: |
           echo "START_DATE=$(date +'%d-%m-%YT%H-%M-%S-%Z')" >> $GITHUB_ENV
           echo "START_TIMESTAMP=$(date +'%s')" >> $GITHUB_ENV
-          TMP_TARGET="https://blackfox-security.com"
+          TMP_TARGET="http://localhost:8000"
           echo "TARGET=$TMP_TARGET" >> $GITHUB_ENV
 
       - name: Levantar aplicación Django (para que SQLMap tenga endpoints)

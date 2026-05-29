@@ -1,0 +1,2 @@
+exclude_dirs: ["tests/*", ".venv/*", "docs/*", "scripts/*", "res/*", "__pycache__/*", ".ruff_cache/*"]
+targets: ["jugadores/**/*.py", "shared/**/*.py", "stats/**/*.py", "studentservices/**/*.py", "manage.py"]
