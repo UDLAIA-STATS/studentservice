@@ -10,7 +10,6 @@ def get_jugador_activo_por_camiseta(shirt_number: int):
         numerocamisetajugador=shirt_number, jugadoractivo=True
     ).first()
 
-
 @transaction.atomic
 def actualizar_estadisticas_generales(shirt_number: int) -> None:
     """
