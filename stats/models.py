@@ -15,15 +15,13 @@ class PlayerStatsConsolidated(models.Model):
     id = models.BigAutoField(primary_key=True)
 
     player_id = models.BigIntegerField(db_index=True)
-    match_id = models.IntegerField(db_index=True)
+    match_id = models.BigIntegerField(db_index=True)
 
     shirt_number = models.PositiveSmallIntegerField(null=True, blank=True)
     team = models.TextField(blank=True, null=True)
     team_color = models.TextField(blank=True, null=True)
 
     passes = models.PositiveIntegerField(default=0)
-    shots_on_target = models.PositiveIntegerField(default=0)
-    has_goal = models.BooleanField(default=False)
     goals = models.PositiveIntegerField(default=0)
 
     avg_speed_kmh = models.DecimalField(
@@ -36,6 +34,9 @@ class PlayerStatsConsolidated(models.Model):
         max_digits=10, decimal_places=3, null=True, blank=True
     )
     heatmap_image_path = models.URLField(blank=True)
+    player_crop_path = models.URLField(blank=True)
+    team_heatmap_path = models.URLField(blank=True)
+    movement_trajectories_path = models.URLField(blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     started_at = models.DateTimeField(null=True, blank=True)
@@ -43,14 +44,13 @@ class PlayerStatsConsolidated(models.Model):
 
     class Meta:
         db_table = 'football"."player_stats_consolidated'
-        unique_together = ("player_id", "match_id")  # ✅ CAMBIAR a player_id
+        unique_together = ("player_id", "match_id")
         indexes = [
-            models.Index(fields=["player_id", "match_id"]),  # ✅ CAMBIAR a player_id
+            models.Index(fields=["player_id", "match_id"]),
             models.Index(fields=["match_id"]),
         ]
 
 
-# Modelo que se utiliza para almacenar las estadísticas históricas acumuladas de los jugadores
 class PlayerStatsHist(models.Model):
     id = models.BigAutoField(primary_key=True)
 
