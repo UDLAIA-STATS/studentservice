@@ -1,27 +1,14 @@
 import logging
-
 from jugadores.models import Jugadores
 from stats.models import PlayerStatsConsolidated
 from stats.services import actualizar_estadisticas_generales
 
 logger = logging.getLogger(__name__)
 
-
 def handle_stats(message: dict) -> bool:
     """
-    Procesa mensaje de Kafka con estadísticas del modelo IA
-
-    Esperado:
-    {
-        "shirt_number": 10,
-        "team_color": "BLUE",
-        "match_id": 123,
-        "passes": 45,
-        "goals": 1,           # o "has_goal": 1 (se prefiere "goals")
-        "distance_km": 9.5,
-        "avg_possession_time_s": 120,
-        "avg_speed_kmh": 7.2
-    }
+    Procesa mensaje de Kafka con estadísticas del modelo IA.
+    Crea un nuevo registro en PlayerStatsConsolidated por cada mensaje.
     """
     try:
         shirt_number = message.get("shirt_number")
@@ -33,7 +20,8 @@ def handle_stats(message: dict) -> bool:
             return False
 
         jugador = Jugadores.objects.filter(
-            numerocamisetajugador=shirt_number, jugadoractivo=True
+            numerocamisetajugador=shirt_number,
+            jugadoractivo=True
         ).first()
 
         if not jugador:
@@ -43,26 +31,29 @@ def handle_stats(message: dict) -> bool:
             )
             return False
 
-        stats, created = PlayerStatsConsolidated.objects.update_or_create(
+        # Crear nuevo registro (insert)
+        stats = PlayerStatsConsolidated.objects.create(
             player_id=jugador.idjugador,
             match_id=match_id,
-            defaults={
-                "shirt_number": shirt_number,
-                "team_color": team_color,
-                "team": message.get("team", ""),
-                "passes": message.get("passes", 0),
-                "goals": message.get("goals", 0),
-                "distance_km": message.get("distance_km", 0.0),
-                "avg_possession_time_s": message.get("avg_possession_time_s", 0),
-                "avg_speed_kmh": message.get("avg_speed_kmh", 0.0),
-                "heatmap_image_path": message.get("heatmap_image_path", ""),
-            },
+            shirt_number=shirt_number,
+            team_color=team_color,
+            team=message.get("team", 1),
+            passes=message.get("passes", 0),
+            goals=message.get("goals", 0),
+            distance_km=message.get("distance_km", 0.0),
+            avg_possession_time_s=message.get("avg_possession_time_s", 0.0),
+            avg_speed_kmh=message.get("avg_speed_kmh", 0.0),
+            avg_acceleration=message.get("avg_acceleration", 0.0),
+            player_crop_path=message.get("player_crop_path", ""),
+            player_heatmap_path=message.get("player_heatmap_path", ""),
+            team_heatmap_path=message.get("team_heatmap_path", ""),
+            movement_trajectories_path=message.get("movement_trajectories_path", ""),
+            track_id=message.get("track_id"),  # puede ser None
         )
 
-        action = "Creada" if created else "Actualizada"
         logger.info(
-            f"{action} estadística para jugador {jugador.idjugador} "
-            f"en partido {match_id}"
+            f"Creada estadística para jugador {jugador.idjugador} "
+            f"en partido {match_id} (track_id={message.get('track_id')})"
         )
 
         actualizar_estadisticas_generales(shirt_number)
