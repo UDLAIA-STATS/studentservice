@@ -114,7 +114,7 @@ class PlayerStatsInputSerializer(serializers.Serializer):
     avg_speed_kmh = serializers.DecimalField(
         required=False,
         allow_null=True,
-        max_digits=6,
+        max_digits=10,
         decimal_places=6,
         min_value=0,
         error_messages={
@@ -129,7 +129,7 @@ class PlayerStatsInputSerializer(serializers.Serializer):
     avg_possession_time_s = serializers.DecimalField(
         required=False,
         allow_null=True,
-        max_digits=8,
+        max_digits=10,
         decimal_places=6,
         min_value=0,
         error_messages={
@@ -144,7 +144,7 @@ class PlayerStatsInputSerializer(serializers.Serializer):
     distance_km = serializers.DecimalField(
         required=False,
         allow_null=True,
-        max_digits=10,
+        max_digits=12,
         decimal_places=6,
         min_value=0,
         error_messages={
