@@ -25,13 +25,13 @@ class PlayerStatsConsolidated(models.Model):
     goals = models.PositiveIntegerField(default=0)
 
     avg_speed_kmh = models.DecimalField(
-        max_digits=6, decimal_places=6, null=True, blank=True
+        max_digits=10, decimal_places=6, null=True, blank=True
     )
     avg_possession_time_s = models.DecimalField(
-        max_digits=8, decimal_places=6, null=True, blank=True
+        max_digits=10, decimal_places=6, null=True, blank=True
     )
     distance_km = models.DecimalField(
-        max_digits=10, decimal_places=6, null=True, blank=True
+        max_digits=12, decimal_places=6, null=True, blank=True
     )
     heatmap_image_path = models.URLField(blank=True)
     player_crop_path = models.URLField(blank=True)
