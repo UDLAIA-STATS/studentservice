@@ -17,8 +17,7 @@ def handle_stats(message: dict) -> bool:
         "team_color": "BLUE",
         "match_id": 123,
         "passes": 45,
-        "shots_on_target": 3,
-        "has_goal": 1,
+        "goals": 1,           # o "has_goal": 1 (se prefiere "goals")
         "distance_km": 9.5,
         "avg_possession_time_s": 120,
         "avg_speed_kmh": 7.2
@@ -33,7 +32,6 @@ def handle_stats(message: dict) -> bool:
             logger.error(f"Datos incompletos en mensaje: {message}")
             return False
 
-        # Buscar jugador activo por número y color de camiseta
         jugador = Jugadores.objects.filter(
             numerocamisetajugador=shirt_number, jugadoractivo=True
         ).first()
@@ -45,7 +43,6 @@ def handle_stats(message: dict) -> bool:
             )
             return False
 
-        # Crear o actualizar estadísticas consolidadas
         stats, created = PlayerStatsConsolidated.objects.update_or_create(
             player_id=jugador.idjugador,
             match_id=match_id,
@@ -54,8 +51,6 @@ def handle_stats(message: dict) -> bool:
                 "team_color": team_color,
                 "team": message.get("team", ""),
                 "passes": message.get("passes", 0),
-                "shots_on_target": message.get("shots_on_target", 0),
-                "has_goal": message.get("has_goal", 0),
                 "goals": message.get("goals", 0),
                 "distance_km": message.get("distance_km", 0.0),
                 "avg_possession_time_s": message.get("avg_possession_time_s", 0),
@@ -70,8 +65,7 @@ def handle_stats(message: dict) -> bool:
             f"en partido {match_id}"
         )
 
-        # Actualizar histórico de estadísticas generales
-        actualizar_estadisticas_generales(jugador.idjugador)
+        actualizar_estadisticas_generales(shirt_number)
 
         return True
 

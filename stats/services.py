@@ -10,6 +10,7 @@ def get_jugador_activo_por_camiseta(shirt_number: int):
         numerocamisetajugador=shirt_number, jugadoractivo=True
     ).first()
 
+
 @transaction.atomic
 def actualizar_estadisticas_generales(shirt_number: int) -> None:
     """
@@ -30,7 +31,6 @@ def actualizar_estadisticas_generales(shirt_number: int) -> None:
     agg = qs.aggregate(
         partidos=Count("match_id", distinct=True),
         passes=Sum("passes"),
-        shots=Sum("shots_on_target"),
         goals=Sum("goals"),
         distance=Sum("distance_km"),
         possession=Sum("avg_possession_time_s"),
@@ -42,7 +42,7 @@ def actualizar_estadisticas_generales(shirt_number: int) -> None:
         defaults={
             "partidos_jugados": agg["partidos"] or 0,
             "total_passes": agg["passes"] or 0,
-            "total_shots_on_target": agg["shots"] or 0,
+            "total_shots_on_target": 0,
             "total_goals": agg["goals"] or 0,
             "total_distance_km": agg["distance"] or 0,
             "total_possession_time_s": agg["possession"] or 0,
