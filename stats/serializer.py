@@ -123,8 +123,8 @@ class PlayerStatsInputSerializer(serializers.Serializer):
     avg_speed_kmh = serializers.DecimalField(
         required=False,
         allow_null=True,
-        max_digits=6,
-        decimal_places=2,
+        max_digits=20,
+        decimal_places=6,
         min_value=0,
         error_messages={
             "invalid": "La velocidad promedio debe ser un número decimal válido.",
@@ -138,8 +138,8 @@ class PlayerStatsInputSerializer(serializers.Serializer):
     avg_possession_time_s = serializers.DecimalField(
         required=False,
         allow_null=True,
-        max_digits=8,
-        decimal_places=2,
+        max_digits=20,
+        decimal_places=6,
         min_value=0,
         error_messages={
             "invalid": "El tiempo promedio de posesión debe ser un número decimal válido.",
@@ -154,8 +154,8 @@ class PlayerStatsInputSerializer(serializers.Serializer):
     distance_km = serializers.DecimalField(
         required=False,
         allow_null=True,
-        max_digits=10,
-        decimal_places=3,
+        max_digits=20,
+        decimal_places=6,
         min_value=0,
         error_messages={
             "invalid": "La distancia recorrida debe ser un número decimal válido.",
@@ -182,8 +182,8 @@ class PlayerStatsInputSerializer(serializers.Serializer):
     km_run = serializers.DecimalField(
         required=False,
         allow_null=True,
-        max_digits=10,
-        decimal_places=3,
+        max_digits=20,
+        decimal_places=6,
         min_value=0,
         error_messages={
             "invalid": "La distancia recorrida (km_run) debe ser un número decimal válido.",
