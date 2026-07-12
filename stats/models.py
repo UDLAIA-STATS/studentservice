@@ -19,6 +19,7 @@ class PlayerStatsConsolidated(models.Model):
 
     shirt_number = models.PositiveSmallIntegerField(null=True, blank=True)
     team = models.TextField(blank=True, null=True)
+    team_goals = models.PositiveIntegerField(default=0)
     team_color = models.TextField(blank=True, null=True)
 
     passes = models.PositiveIntegerField(default=0)
