@@ -44,6 +44,7 @@ def handle_stats(message: dict) -> bool:
             player_crop_path=message.get("player_crop_path", ""),
             team_heatmap_path=message.get("team_heatmap_path", ""),
             movement_trajectories_path=message.get("movement_trajectories_path", ""),
+            team_goals=message.get("team_goals", 0),
         )
 
         logger.info(
