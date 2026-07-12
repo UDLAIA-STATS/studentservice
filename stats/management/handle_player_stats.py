@@ -33,7 +33,7 @@ def handle_stats(message: dict) -> bool:
             match_id=match_id,
             shirt_number=shirt_number,
             team_color=team_color,
-            team=message.get("team", team_color),
+            team=message.get("team", 1),
             passes=message.get("passes", 0),
             goals=message.get("goals", 0),
             distance_km=message.get("distance_km", 0.0),
