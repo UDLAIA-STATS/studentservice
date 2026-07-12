@@ -6,10 +6,6 @@ from stats.services import actualizar_estadisticas_generales
 logger = logging.getLogger(__name__)
 
 def handle_stats(message: dict) -> bool:
-    """
-    Procesa mensaje de Kafka con estadísticas del modelo IA.
-    Crea un nuevo registro en PlayerStatsConsolidated por cada mensaje.
-    """
     try:
         shirt_number = message.get("shirt_number")
         team_color = message.get("team_color")
@@ -31,29 +27,27 @@ def handle_stats(message: dict) -> bool:
             )
             return False
 
-        # Crear nuevo registro (insert)
         stats = PlayerStatsConsolidated.objects.create(
             player_id=jugador.idjugador,
             match_id=match_id,
             shirt_number=shirt_number,
             team_color=team_color,
-            team=message.get("team", 1),
+            team=message.get("team", team_color),
             passes=message.get("passes", 0),
             goals=message.get("goals", 0),
             distance_km=message.get("distance_km", 0.0),
             avg_possession_time_s=message.get("avg_possession_time_s", 0.0),
             avg_speed_kmh=message.get("avg_speed_kmh", 0.0),
             avg_acceleration=message.get("avg_acceleration", 0.0),
+            heatmap_image_path=message.get("player_heatmap_path", ""),
             player_crop_path=message.get("player_crop_path", ""),
-            player_heatmap_path=message.get("player_heatmap_path", ""),
             team_heatmap_path=message.get("team_heatmap_path", ""),
             movement_trajectories_path=message.get("movement_trajectories_path", ""),
-            track_id=message.get("track_id"),  # puede ser None
         )
 
         logger.info(
             f"Creada estadística para jugador {jugador.idjugador} "
-            f"en partido {match_id} (track_id={message.get('track_id')})"
+            f"en partido {match_id}"
         )
 
         actualizar_estadisticas_generales(shirt_number)

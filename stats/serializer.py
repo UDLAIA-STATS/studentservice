@@ -21,6 +21,7 @@ class PlayerStatsConsolidatedPatchSerializer(serializers.ModelSerializer):
             "goals",
             "avg_speed_kmh",
             "avg_possession_time_s",
+            "avg_acceleration",
             "distance_km",
             "heatmap_image_path",
             "player_crop_path",
@@ -124,6 +125,21 @@ class PlayerStatsInputSerializer(serializers.Serializer):
             "min_value": "La velocidad promedio debe ser mayor o igual a 0 km/h.",
             "null": "La velocidad promedio puede ser nula si no se especifica.",
         },
+    )
+
+    avg_acceleration = serializers.DecimalField(
+        required=False,
+        allow_null=True,
+        max_digits=12,
+        decimal_places=6,
+        min_value=0,
+        error_messages={
+            "invalid": "La aceleración promedio debe ser un número decimal valido.",
+            "max_digits": "La aceleración promedio no puede tener más de 8 dígitos en total.",
+            "decimal_places": "La aceleración promedio no puede tener más de 6 decimales.",
+            "min_value": "La aceleración promedio debe ser mayor o igual a 0 m/s^2.",
+            "null": "La aceleración promedio puede ser nula si no se especifica.",
+        }
     )
 
     avg_possession_time_s = serializers.DecimalField(
