@@ -89,7 +89,6 @@ class Migration(migrations.Migration):
             options={
                 'db_table': 'football"."player_stats_consolidated',
                 'indexes': [models.Index(fields=['match_id'], name='player_stat_match_i_c2ce25_idx'), models.Index(fields=['player_id', 'match_id'], name='player_stat_player__eb5b5d_idx')],
-                'unique_together': {('player_id', 'match_id')},
             },
         ),
     ]

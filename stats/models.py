@@ -33,6 +33,9 @@ class PlayerStatsConsolidated(models.Model):
     distance_km = models.DecimalField(
         max_digits=12, decimal_places=6, null=True, blank=True
     )
+    avg_acceleration = models.DecimalField(
+        max_digits=12, decimal_places=6, null=True, blank=True
+    )
     heatmap_image_path = models.URLField(blank=True)
     player_crop_path = models.URLField(blank=True)
     team_heatmap_path = models.URLField(blank=True)
@@ -44,7 +47,6 @@ class PlayerStatsConsolidated(models.Model):
 
     class Meta:
         db_table = 'football"."player_stats_consolidated'
-        unique_together = ("player_id", "match_id")
         indexes = [
             models.Index(fields=["player_id", "match_id"]),
             models.Index(fields=["match_id"]),
