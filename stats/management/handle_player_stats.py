@@ -4,6 +4,7 @@ from stats.models import PlayerStatsConsolidated
 from stats.services import actualizar_estadisticas_generales
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.WARNING)
 
 def handle_stats(message: dict) -> bool:
     try:
@@ -39,7 +40,7 @@ def handle_stats(message: dict) -> bool:
             avg_possession_time_s=message.get("avg_possession_time_s", 0.0),
             avg_speed_kmh=message.get("avg_speed_kmh", 0.0),
             avg_acceleration=message.get("avg_acceleration", 0.0),
-            heatmap_image_path=message.get("player_heatmap_path", ""),
+            heatmap_image_path=message.get("heatmap_image_path", ""),
             player_crop_path=message.get("player_crop_path", ""),
             team_heatmap_path=message.get("team_heatmap_path", ""),
             movement_trajectories_path=message.get("movement_trajectories_path", ""),
