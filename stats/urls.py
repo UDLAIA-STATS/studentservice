@@ -23,7 +23,7 @@ urlpatterns = [
         name="consolidated-patch",
     ),
     path(
-        "consolidated/correction/<pk>/",
+        "consolidated/correction/",
         PlayerStatsCorrectionView.as_view(),    
     )
 ]
