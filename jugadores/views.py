@@ -41,7 +41,11 @@ class JugadorAllView(APIView):
 
 class ActivePlayersShirts(APIView):
     def get(self, request):
-        players = Jugadores.objects.filter(jugadoractivo=True).values_list('numerocamisetajugador', flat=True).distinct()
+        players = list(
+            Jugadores.objects.filter(jugadoractivo=True)
+            .values("idjugador", "numerocamisetajugador")
+            .distinct()
+        )
         return success_response("Shirts de jugadores activos", players, status.HTTP_200_OK)
 
 
