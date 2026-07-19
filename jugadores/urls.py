@@ -7,6 +7,7 @@ from jugadores.views import (
     JugadorUpdateView,
     JugadorDeleteView,
     JugadorDetailViewById,
+    ActivePlayersShirts
 )
 
 urlpatterns = [
@@ -34,5 +35,10 @@ urlpatterns = [
         "jugadores/<str:banner>/delete/",
         JugadorDeleteView.as_view(),
         name="jugador-delete",
+    ),
+    path(
+        "jugadores/activos/",
+        ActivePlayersShirts.as_view(),
+        name="jugadores-activos",
     ),
 ]
