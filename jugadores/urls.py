@@ -37,7 +37,7 @@ urlpatterns = [
         name="jugador-delete",
     ),
     path(
-        "jugadores/activos/",
+        "jugadores/shirt/activos/",
         ActivePlayersShirts.as_view(),
         name="jugadores-activos",
     ),
