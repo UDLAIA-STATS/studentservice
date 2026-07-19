@@ -4,6 +4,7 @@ from stats.views import (
     PlayerStatsListView,
     PlayerStatsDetailView,
     PlayerStatsPartialUpdateView,
+    PlayerStatsCorrectionView
 )
 
 app_name = "stats"
@@ -21,4 +22,8 @@ urlpatterns = [
         PlayerStatsPartialUpdateView.as_view(),
         name="consolidated-patch",
     ),
+    path(
+        "consolidated/correction/<pk>/",
+        PlayerStatsCorrectionView.as_view(),    
+    )
 ]
