@@ -245,7 +245,7 @@ class PlayerStatsDetailView(generics.RetrieveAPIView):
             return success_response("Estadística", serializer.data, status.HTTP_200_OK)
         except Exception as exc:
             return error_response(
-                "Error al recuperar", str(exc), status.HTTP_500_INTERNAL_SERVER_ERROR
+                "Error al obtener la estadística", str(exc), status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
 
@@ -257,7 +257,7 @@ class GeneralStatsView(generics.RetrieveAPIView):
             )
         except Exception as exc:
             return error_response(
-                "Error al recuperar", str(exc), status.HTTP_500_INTERNAL_SERVER_ERROR
+                "Error al obtener las estadísticas generales", str(exc), status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
 
@@ -269,7 +269,7 @@ class AnalyzedMatchsView(generics.RetrieveAPIView):
             )
         except Exception as exc:
             return error_response(
-                "Error al recuperar", str(exc), status.HTTP_500_INTERNAL_SERVER_ERROR
+                "Error al obtener los partidos analizados", str(exc), status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
 
@@ -283,5 +283,5 @@ class PlayerStatsByMatchView(APIView):
             )
         except Exception as exc:
             return error_response(  
-                "Error al recuperar", str(exc), status.HTTP_500_INTERNAL_SERVER_ERROR
+                "Error al recuperar las estadísticas por partido", str(exc), status.HTTP_500_INTERNAL_SERVER_ERROR
             )
