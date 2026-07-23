@@ -4,7 +4,10 @@ from stats.views import (
     PlayerStatsListView,
     PlayerStatsDetailView,
     PlayerStatsPartialUpdateView,
-    PlayerStatsCorrectionView
+    PlayerStatsCorrectionView,
+    GeneralStatsView,
+    AnalyzedMatchsView,
+    PlayerStatsByMatchView,
 )
 
 app_name = "stats"
@@ -24,6 +27,21 @@ urlpatterns = [
     ),
     path(
         "consolidated/stat/correction/",
-        PlayerStatsCorrectionView.as_view(),    
-    )
+        PlayerStatsCorrectionView.as_view(),
+    ),
+    path(
+        "general-stats/",
+        GeneralStatsView.as_view(),
+        name="general-stats",
+    ),
+    path(
+        "events/analyzed/matchs/",
+        AnalyzedMatchsView.as_view(),
+        name="analyzed-matchs",
+    ),
+    path(
+        "events/by-match/<int:match_id>/",
+        PlayerStatsByMatchView.as_view(),
+        name="player-stats-by-match",
+    ),
 ]

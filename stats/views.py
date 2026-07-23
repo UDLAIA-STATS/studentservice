@@ -5,6 +5,7 @@ from rest_framework.views import APIView
 from rest_framework.exceptions import ValidationError
 import logging
 from jugadores.models import Jugadores
+from stats.history_service import get_general_stats, get_analyzed_matches, player_stats_by_match
 from stats.management import handle_player_stats
 from stats.models import PlayerStatsConsolidated
 from stats.serializer import (
@@ -244,5 +245,43 @@ class PlayerStatsDetailView(generics.RetrieveAPIView):
             return success_response("Estadística", serializer.data, status.HTTP_200_OK)
         except Exception as exc:
             return error_response(
+                "Error al recuperar", str(exc), status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class GeneralStatsView(generics.RetrieveAPIView):
+    def retrieve(self, request, *args, **kwargs):
+        try:
+            return success_response(
+                "Estadísticas generales", get_general_stats(), status.HTTP_200_OK
+            )
+        except Exception as exc:
+            return error_response(
+                "Error al recuperar", str(exc), status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class AnalyzedMatchsView(generics.RetrieveAPIView):
+    def retrieve(self, request, *args, **kwargs):
+        try:
+            return success_response(
+                "Partidos analizados", get_analyzed_matches(), status.HTTP_200_OK
+            )
+        except Exception as exc:
+            return error_response(
+                "Error al recuperar", str(exc), status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class PlayerStatsByMatchView(APIView):
+    def get(self, request, match_id):
+        try:
+            return success_response(
+                "Estadísticas por partido",
+                player_stats_by_match(match_id),
+                status.HTTP_200_OK,
+            )
+        except Exception as exc:
+            return error_response(  
                 "Error al recuperar", str(exc), status.HTTP_500_INTERNAL_SERVER_ERROR
             )
