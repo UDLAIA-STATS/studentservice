@@ -7,13 +7,30 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
 
 def handle_stats(message: dict) -> bool:
+    """
+    Procesa mensaje de Kafka con estadísticas del modelo IA
+
+    Esperado:
+    {
+        "shirt_number": 10,
+        "team_color": "BLUE",
+        "match_id": 123,
+        "passes": 45,
+        "shots_on_target": 3,
+        "has_goal": 1,
+        "distance_km": 9.5,
+        "avg_possession_time_s": 120,
+        "avg_speed_kmh": 7.2
+        "heatmap_image_path": "/path/to/heatmap.png"
+    }
+    """
     try:
         shirt_number = message.get("shirt_number")
         team_color = message.get("team_color")
         match_id = message.get("match_id")
 
         if not all([shirt_number, team_color, match_id]):
-            logger.error(f"Datos incompletos en mensaje: {message}")
+            logger.error("Datos incompletos en mensaje: %s", message)
             return False
 
         jugador = Jugadores.objects.filter(
@@ -23,8 +40,9 @@ def handle_stats(message: dict) -> bool:
 
         if not jugador:
             logger.warning(
-                f"Jugador no encontrado: shirt_number={shirt_number}, "
-                f"team_color={team_color}"
+                "Jugador no encontrado: shirt_number=%s, team_color=%s",
+                shirt_number,
+                team_color
             )
             return False
 
@@ -35,6 +53,8 @@ def handle_stats(message: dict) -> bool:
             team_color=team_color,
             team=message.get("team", 1),
             passes=message.get("passes", 0),
+            shots_on_target=message.get("shots_on_target", 0),
+            has_goal=message.get("has_goal", 0),
             goals=message.get("goals", 0),
             distance_km=message.get("distance_km", 0.0),
             avg_possession_time_s=message.get("avg_possession_time_s", 0.0),
@@ -48,8 +68,9 @@ def handle_stats(message: dict) -> bool:
         )
 
         logger.info(
-            f"Creada estadística para jugador {jugador.idjugador} "
-            f"en partido {match_id}"
+            "Creada estadística para jugador %s en partido %s",
+            jugador.idjugador,
+            match_id
         )
 
         actualizar_estadisticas_generales(shirt_number)

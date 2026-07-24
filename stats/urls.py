@@ -4,6 +4,7 @@ from stats.views import (
     PlayerStatsListView,
     PlayerStatsDetailView,
     PlayerStatsPartialUpdateView,
+    TeamStatsPdfView,
     PlayerStatsCorrectionView,
     GeneralStatsView,
     AnalyzedMatchsView,
@@ -44,4 +45,10 @@ urlpatterns = [
         PlayerStatsByMatchView.as_view(),
         name="player-stats-by-match",
     ),
+    path(
+        "matches/<int:match_id>/stats/pdf/"
+        , TeamStatsPdfView.as_view(), 
+        name="team-stats-pdf"
+        ),
+    
 ]
