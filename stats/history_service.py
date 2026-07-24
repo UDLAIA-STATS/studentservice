@@ -25,6 +25,8 @@ class PlayerMatchStats:
     distance_km: float
     heatmap_image_path: str
     team_heatmap_image_path: str
+    crop_image_path: str
+    movement_trajectories_path: str
 
 
 def get_general_stats():
@@ -117,6 +119,8 @@ def player_stats_by_match(match_id: int):
             distance_km=float(stat.distance_km or 0),
             heatmap_image_path=stat.heatmap_image_path,
             team_heatmap_image_path=stat.team_heatmap_path,
+            crop_image_path=stat.player_crop_path,
+            movement_trajectories_path=stat.movement_trajectories_path,
         )
 
         response.append(asdict(item))
