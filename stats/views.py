@@ -17,6 +17,15 @@ from shared import (
     error_response,
     paginate_queryset,
 )
+from reportlab.lib.pagesizes import letter
+from reportlab.lib import colors
+from reportlab.lib.units import cm
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet
+from django.db.models import Sum, Avg, Count, Max
+from django.http import HttpResponse
+from django.utils.timezone import now
+from io import BytesIO
 
 logger = logging.getLogger(__name__)
 
@@ -152,3 +161,121 @@ class PlayerStatsDetailView(generics.RetrieveAPIView):
             return error_response(
                 "Error al recuperar", str(exc), status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+class TeamStatsPdfView(APIView):
+    """
+    Descarga en PDF las estadísticas consolidadas de un partido (equipo).
+    GET /api/matches/<match_id>/stats/pdf/
+    """
+
+    def get(self, request, match_id):
+        stats = PlayerStats.objects.filter(match_id=match_id)
+
+        if not stats.exists():
+            return Response(
+                {"error": "No hay estadísticas para este partido"}, status=404
+            )
+
+        # Agregación por jugador
+        per_player = (
+            stats.values("player_id")
+            .annotate(
+                total_goals=Sum("has_goal"),
+                total_km=Sum("km_run"),
+                total_shots=Sum("shots_on_target"),
+                frames=Count("id"),
+                last_update=Max("created_at"),
+            )
+            .order_by("-total_goals", "-total_shots")
+        )
+
+        # Totales del equipo
+        team_totals = stats.aggregate(
+            total_goals=Sum("has_goal"),
+            total_km=Sum("km_run"),
+            total_shots=Sum("shots_on_target"),
+            avg_km=Avg("km_run"),
+        )
+
+        pdf_buffer = self._build_pdf(match_id, per_player, team_totals)
+
+        filename = f"team_stats_match_{match_id}.pdf"
+        response = HttpResponse(pdf_buffer, content_type="application/pdf")
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        return response
+
+    def _build_pdf(self, match_id, per_player, team_totals):
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=letter,
+            topMargin=1.5 * cm,
+            bottomMargin=1.5 * cm,
+        )
+        styles = getSampleStyleSheet()
+        story = []
+
+        # Título
+        story.append(Paragraph(f"Estadísticas consolidadas - Partido #{match_id}", styles["Title"]))
+        story.append(Paragraph(f"Generado el {now().strftime('%Y-%m-%d %H:%M')}", styles["Normal"]))
+        story.append(Spacer(1, 16))
+
+        # Resumen del equipo
+        story.append(Paragraph("Resumen del equipo", styles["Heading2"]))
+        resumen_data = [
+            ["Goles totales", str(team_totals["total_goals"] or 0)],
+            ["Km recorridos (total)", f"{team_totals['total_km'] or 0:.2f}"],
+            ["Km recorridos (promedio)", f"{team_totals['avg_km'] or 0:.2f}"],
+            ["Remates al arco", str(team_totals["total_shots"] or 0)],
+        ]
+        resumen_table = Table(resumen_data, colWidths=[8 * cm, 6 * cm])
+        resumen_table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#2c3e50")),
+                    ("TEXTCOLOR", (0, 0), (0, -1), colors.white),
+                    ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+                    ("FONTSIZE", (0, 0), (-1, -1), 10),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+                    ("TOPPADDING", (0, 0), (-1, -1), 6),
+                ]
+            )
+        )
+        story.append(resumen_table)
+        story.append(Spacer(1, 20))
+
+        # Detalle por jugador
+        story.append(Paragraph("Detalle por jugador", styles["Heading2"]))
+        table_data = [["Jugador", "Goles", "Km", "Remates", "Frames"]]
+        for row in per_player:
+            table_data.append(
+                [
+                    str(row["player_id"]),
+                    str(row["total_goals"] or 0),
+                    f"{row['total_km'] or 0:.2f}",
+                    str(row["total_shots"] or 0),
+                    str(row["frames"]),
+                ]
+            )
+
+        player_table = Table(table_data, colWidths=[4 * cm, 2.5 * cm, 2.5 * cm, 2.5 * cm, 2.5 * cm])
+        player_table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#34495e")),
+                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                    ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+                    ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f2f2f2")]),
+                    ("ALIGN", (1, 0), (-1, -1), "CENTER"),
+                    ("FONTSIZE", (0, 0), (-1, -1), 9),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+                    ("TOPPADDING", (0, 0), (-1, -1), 5),
+                ]
+            )
+        )
+        story.append(player_table)
+
+        doc.build(story)
+        buffer.seek(0)
+        return buffer

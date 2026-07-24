@@ -4,6 +4,7 @@ from stats.views import (
     PlayerStatsListView,
     PlayerStatsDetailView,
     PlayerStatsPartialUpdateView,
+    TeamStatsPdfView,
 )
 
 app_name = "stats"
@@ -21,4 +22,10 @@ urlpatterns = [
         PlayerStatsPartialUpdateView.as_view(),
         name="consolidated-patch",
     ),
+    path(
+        "matches/<int:match_id>/stats/pdf/"
+        , TeamStatsPdfView.as_view(), 
+        name="team-stats-pdf"
+        ),
+    
 ]
