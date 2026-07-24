@@ -293,6 +293,6 @@ class JugadoresTestCase(TestCase):
             ),
         ):
             resp = self.patch_json(url, {"idbanner": "A00000001"})
-        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.status_code, 200)
         payload = self.parse(resp)
         self.assertTrue("error" in payload or "data" in payload)

@@ -4,6 +4,8 @@ from rest_framework import status, generics
 from rest_framework.views import APIView
 from rest_framework.exceptions import ValidationError
 import logging
+from jugadores.models import Jugadores
+from stats.history_service import get_general_stats, get_analyzed_matches, player_stats_by_match
 from stats.management import handle_player_stats
 from stats.models import PlayerStatsConsolidated
 from stats.serializer import (
@@ -11,6 +13,7 @@ from stats.serializer import (
     PlayerStatsConsolidatedPatchSerializer,
     PlayerStatsInputSerializer,
 )
+from stats.services import actualizar_estadisticas_generales, merge_player_stats
 from shared import (
     format_serializer_errors,
     success_response,
@@ -62,18 +65,110 @@ class PlayerStatsBulkCreateView(APIView):
             )
 
         except ValidationError as ve:
-            logger.error("Error de validación en PlayerStatsBulkCreateView", exc_info=True)
+            logger.error(
+                "Error de validación en PlayerStatsBulkCreateView", exc_info=True
+            )
             return error_response(
-                "Error de validación",
-                ve.detail,
-                status.HTTP_400_BAD_REQUEST
+                "Error de validación", ve.detail, status.HTTP_400_BAD_REQUEST
             )
         except Exception as exc:
             logger.error("Error inesperado en PlayerStatsBulkCreateView", exc_info=True)
             return error_response(
+                "Error inesperado", str(exc), status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class PlayerStatsCorrectionView(APIView):
+
+    @transaction.atomic
+    def post(self, request):
+        try:
+            stats_id = request.data.get("stats_id")
+            player_id = request.data.get("player_id")
+            shirt_number = request.data.get("shirt_number")
+
+            if not all([stats_id, player_id, shirt_number]):
+                return error_response(
+                    "Datos inválidos",
+                    "Los datos recibidos son incorrectos, no se pudo actualizar la estadística.",
+                    status.HTTP_400_BAD_REQUEST,
+                )
+
+            stat = PlayerStatsConsolidated.objects.filter(id=stats_id).first()
+
+            if stat is None:
+                return error_response(
+                    "Estadística no encontrada",
+                    "La estadística indicada no existe.",
+                    status.HTTP_400_BAD_REQUEST,
+                )
+
+            jugador = Jugadores.objects.filter(
+                idjugador=player_id,
+                jugadoractivo=True,
+            ).first()
+
+            if jugador is None:
+                return error_response(
+                    "Jugador inválido",
+                    "El jugador indicado no existe o está inactivo.",
+                    status.HTTP_400_BAD_REQUEST,
+                )
+
+            if jugador.numerocamisetajugador != shirt_number:
+                return error_response(
+                    "Datos inválidos",
+                    "El número de camiseta no corresponde al jugador indicado.",
+                    status.HTTP_400_BAD_REQUEST,
+                )
+
+            if stat.player_id == player_id and stat.shirt_number == shirt_number:
+                return error_response(
+                    "Sin cambios",
+                    "La estadística ya pertenece al jugador indicado.",
+                    status.HTTP_400_BAD_REQUEST,
+                )
+
+            duplicates = PlayerStatsConsolidated.objects.filter(
+                match_id=stat.match_id,
+                player_id=player_id,
+                shirt_number=shirt_number,
+            ).exclude(id=stat.id)
+
+            if duplicates.count() > 1:
+                return error_response(
+                    "Duplicados encontrados",
+                    (
+                        "Se encontraron múltiples estadísticas para el mismo "
+                        "jugador y partido. La consolidación debe realizarse manualmente."
+                    ),
+                    status.HTTP_400_BAD_REQUEST,
+                )
+
+            if duplicates.exists():
+                merge_player_stats(
+                    source_stat=stat,
+                    target_stat=duplicates.first(),
+                    player=jugador,
+                )
+            else:
+                stat.player_id = jugador.idjugador
+                stat.shirt_number = jugador.numerocamisetajugador
+                stat.save(update_fields=["player_id", "shirt_number"])
+
+            actualizar_estadisticas_generales(jugador.numerocamisetajugador)
+
+            return success_response(
+                "Estadística corregida correctamente.",
+                {},
+                status.HTTP_200_OK,
+            )
+
+        except Exception as exc:
+            return error_response(
                 "Error inesperado",
                 str(exc),
-                status.HTTP_500_INTERNAL_SERVER_ERROR
+                status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
 
@@ -159,7 +254,45 @@ class PlayerStatsDetailView(generics.RetrieveAPIView):
             return success_response("Estadística", serializer.data, status.HTTP_200_OK)
         except Exception as exc:
             return error_response(
-                "Error al recuperar", str(exc), status.HTTP_500_INTERNAL_SERVER_ERROR
+                "Error al obtener la estadística", str(exc), status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class GeneralStatsView(generics.RetrieveAPIView):
+    def retrieve(self, request, *args, **kwargs):
+        try:
+            return success_response(
+                "Estadísticas generales", get_general_stats(), status.HTTP_200_OK
+            )
+        except Exception as exc:
+            return error_response(
+                "Error al obtener las estadísticas generales", str(exc), status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class AnalyzedMatchsView(generics.RetrieveAPIView):
+    def retrieve(self, request, *args, **kwargs):
+        try:
+            return success_response(
+                "Partidos analizados", get_analyzed_matches(), status.HTTP_200_OK
+            )
+        except Exception as exc:
+            return error_response(
+                "Error al obtener los partidos analizados", str(exc), status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class PlayerStatsByMatchView(APIView):
+    def get(self, request, match_id):
+        try:
+            return success_response(
+                "Estadísticas por partido",
+                player_stats_by_match(match_id),
+                status.HTTP_200_OK,
+            )
+        except Exception as exc:
+            return error_response(  
+                "Error al recuperar las estadísticas por partido", str(exc), status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
 class TeamStatsPdfView(APIView):

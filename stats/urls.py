@@ -5,6 +5,10 @@ from stats.views import (
     PlayerStatsDetailView,
     PlayerStatsPartialUpdateView,
     TeamStatsPdfView,
+    PlayerStatsCorrectionView,
+    GeneralStatsView,
+    AnalyzedMatchsView,
+    PlayerStatsByMatchView,
 )
 
 app_name = "stats"
@@ -21,6 +25,25 @@ urlpatterns = [
         "consolidated/<pk>/",
         PlayerStatsPartialUpdateView.as_view(),
         name="consolidated-patch",
+    ),
+    path(
+        "consolidated/stat/correction/",
+        PlayerStatsCorrectionView.as_view(),
+    ),
+    path(
+        "general-stats/",
+        GeneralStatsView.as_view(),
+        name="general-stats",
+    ),
+    path(
+        "events/analyzed/matchs/",
+        AnalyzedMatchsView.as_view(),
+        name="analyzed-matchs",
+    ),
+    path(
+        "events/by-match/<int:match_id>/",
+        PlayerStatsByMatchView.as_view(),
+        name="player-stats-by-match",
     ),
     path(
         "matches/<int:match_id>/stats/pdf/"

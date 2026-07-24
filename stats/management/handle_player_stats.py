@@ -1,11 +1,10 @@
 import logging
-
 from jugadores.models import Jugadores
 from stats.models import PlayerStatsConsolidated
 from stats.services import actualizar_estadisticas_generales
 
 logger = logging.getLogger(__name__)
-
+logger.setLevel(logging.WARNING)
 
 def handle_stats(message: dict) -> bool:
     """
@@ -31,48 +30,50 @@ def handle_stats(message: dict) -> bool:
         match_id = message.get("match_id")
 
         if not all([shirt_number, team_color, match_id]):
-            logger.error(f"Datos incompletos en mensaje: {message}")
+            logger.error("Datos incompletos en mensaje: %s", message)
             return False
 
-        # Buscar jugador activo por número y color de camiseta
         jugador = Jugadores.objects.filter(
-            numerocamisetajugador=shirt_number, jugadoractivo=True
+            numerocamisetajugador=shirt_number,
+            jugadoractivo=True
         ).first()
 
         if not jugador:
             logger.warning(
-                f"Jugador no encontrado: shirt_number={shirt_number}, "
-                f"team_color={team_color}"
+                "Jugador no encontrado: shirt_number=%s, team_color=%s",
+                shirt_number,
+                team_color
             )
             return False
 
-        # Crear o actualizar estadísticas consolidadas
-        stats, created = PlayerStatsConsolidated.objects.update_or_create(
+        stats = PlayerStatsConsolidated.objects.create(
             player_id=jugador.idjugador,
             match_id=match_id,
-            defaults={
-                "shirt_number": shirt_number,
-                "team_color": team_color,
-                "team": message.get("team", ""),
-                "passes": message.get("passes", 0),
-                "shots_on_target": message.get("shots_on_target", 0),
-                "has_goal": message.get("has_goal", 0),
-                "goals": message.get("goals", 0),
-                "distance_km": message.get("distance_km", 0.0),
-                "avg_possession_time_s": message.get("avg_possession_time_s", 0),
-                "avg_speed_kmh": message.get("avg_speed_kmh", 0.0),
-                "heatmap_image_path": message.get("heatmap_image_path", ""),
-            },
+            shirt_number=shirt_number,
+            team_color=team_color,
+            team=message.get("team", 1),
+            passes=message.get("passes", 0),
+            shots_on_target=message.get("shots_on_target", 0),
+            has_goal=message.get("has_goal", 0),
+            goals=message.get("goals", 0),
+            distance_km=message.get("distance_km", 0.0),
+            avg_possession_time_s=message.get("avg_possession_time_s", 0.0),
+            avg_speed_kmh=message.get("avg_speed_kmh", 0.0),
+            avg_acceleration=message.get("avg_acceleration", 0.0),
+            heatmap_image_path=message.get("heatmap_image_path", ""),
+            player_crop_path=message.get("player_crop_path", ""),
+            team_heatmap_path=message.get("team_heatmap_path", ""),
+            movement_trajectories_path=message.get("movement_trajectories_path", ""),
+            team_goals=message.get("team_goals", 0),
         )
 
-        action = "Creada" if created else "Actualizada"
         logger.info(
-            f"{action} estadística para jugador {jugador.idjugador} "
-            f"en partido {match_id}"
+            "Creada estadística para jugador %s en partido %s",
+            jugador.idjugador,
+            match_id
         )
 
-        # Actualizar histórico de estadísticas generales
-        actualizar_estadisticas_generales(jugador.idjugador)
+        actualizar_estadisticas_generales(shirt_number)
 
         return True
 

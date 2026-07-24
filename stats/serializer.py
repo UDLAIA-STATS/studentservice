@@ -18,14 +18,16 @@ class PlayerStatsConsolidatedPatchSerializer(serializers.ModelSerializer):
             "team",
             "team_color",
             "passes",
-            "shots_on_target",
-            "has_goal",
+            "goals",
             "avg_speed_kmh",
             "avg_possession_time_s",
+            "avg_acceleration",
             "distance_km",
             "heatmap_image_path",
+            "player_crop_path",
+            "team_heatmap_path",
+            "movement_trajectories_path",
         )
-
 
 class PlayerStatsInputSerializer(serializers.Serializer):
     """Valida el payload de un jugador."""
@@ -98,74 +100,6 @@ class PlayerStatsInputSerializer(serializers.Serializer):
         },
     )
 
-    shots_on_target = serializers.IntegerField(
-        required=False,
-        allow_null=True,
-        default=0,
-        min_value=0,
-        error_messages={
-            "invalid": "El número de tiros al arco debe ser un número válido.",
-            "min_value": "El número de tiros al arco no puede ser negativo.",
-            "null": "El número de tiros al arco puede ser nulo si no se especifica.",
-        },
-    )
-
-    has_goal = serializers.BooleanField(
-        required=False,
-        allow_null=True,
-        default=False,
-        error_messages={
-            "invalid": 'El campo "tiene gol" debe ser un valor booleano (true/false).',
-            "null": 'El campo "tiene gol" puede ser nulo si no se especifica.',
-        },
-    )
-
-    avg_speed_kmh = serializers.DecimalField(
-        required=False,
-        allow_null=True,
-        max_digits=6,
-        decimal_places=2,
-        min_value=0,
-        error_messages={
-            "invalid": "La velocidad promedio debe ser un número decimal válido.",
-            "max_digits": "La velocidad promedio no puede tener más de 6 dígitos en total.",
-            "decimal_places": "La velocidad promedio no puede tener más de 2 decimales.",
-            "min_value": "La velocidad promedio debe ser mayor o igual a 0 km/h.",
-            "null": "La velocidad promedio puede ser nula si no se especifica.",
-        },
-    )
-
-    avg_possession_time_s = serializers.DecimalField(
-        required=False,
-        allow_null=True,
-        max_digits=8,
-        decimal_places=2,
-        min_value=0,
-        error_messages={
-            "invalid": "El tiempo promedio de posesión debe ser un número decimal válido.",
-            "max_digits": "El tiempo promedio de posesión no"
-            "puede tener más de 8 dígitos en total.",
-            "decimal_places": "El tiempo promedio de posesión no puede tener más de 2 decimales.",
-            "min_value": "El tiempo promedio de posesión debe ser mayor o igual a 0 segundos.",
-            "null": "El tiempo promedio de posesión puede ser nula si no se especifica.",
-        },
-    )
-
-    distance_km = serializers.DecimalField(
-        required=False,
-        allow_null=True,
-        max_digits=10,
-        decimal_places=3,
-        min_value=0,
-        error_messages={
-            "invalid": "La distancia recorrida debe ser un número decimal válido.",
-            "max_digits": "La distancia recorrida no puede tener más de 10 dígitos en total.",
-            "decimal_places": "La distancia recorrida no puede tener más de 3 decimales.",
-            "min_value": "La distancia recorrida debe ser mayor o igual a 0 km.",
-            "null": "La distancia recorrida puede ser nula si no se especifica.",
-        },
-    )
-
     goals = serializers.IntegerField(
         required=False,
         allow_null=True,
@@ -178,20 +112,63 @@ class PlayerStatsInputSerializer(serializers.Serializer):
         },
     )
 
-    # Agregado: Campo km_run que aparece en tu JSON
-    km_run = serializers.DecimalField(
+    avg_speed_kmh = serializers.DecimalField(
         required=False,
         allow_null=True,
         max_digits=10,
-        decimal_places=3,
+        decimal_places=6,
         min_value=0,
         error_messages={
-            "invalid": "La distancia recorrida (km_run) debe ser un número decimal válido.",
-            "max_digits": "La distancia recorrida (km_run)"
-            "no puede tener más de 10 dígitos en total.",
-            "decimal_places": "La distancia recorrida (km_run) no puede tener más de 3 decimales.",
-            "min_value": "La distancia recorrida (km_run) debe ser mayor o igual a 0 km.",
-            "null": "La distancia recorrida (km_run) puede ser nula si no se especifica.",
+            "invalid": "La velocidad promedio debe ser un número decimal válido.",
+            "max_digits": "La velocidad promedio no puede tener más de 6 dígitos en total.",
+            "decimal_places": "La velocidad promedio no puede tener más de 6 decimales.",
+            "min_value": "La velocidad promedio debe ser mayor o igual a 0 km/h.",
+            "null": "La velocidad promedio puede ser nula si no se especifica.",
+        },
+    )
+
+    avg_acceleration = serializers.DecimalField(
+        required=False,
+        allow_null=True,
+        max_digits=12,
+        decimal_places=6,
+        min_value=0,
+        error_messages={
+            "invalid": "La aceleración promedio debe ser un número decimal valido.",
+            "max_digits": "La aceleración promedio no puede tener más de 8 dígitos en total.",
+            "decimal_places": "La aceleración promedio no puede tener más de 6 decimales.",
+            "min_value": "La aceleración promedio debe ser mayor o igual a 0 m/s^2.",
+            "null": "La aceleración promedio puede ser nula si no se especifica.",
+        }
+    )
+
+    avg_possession_time_s = serializers.DecimalField(
+        required=False,
+        allow_null=True,
+        max_digits=10,
+        decimal_places=6,
+        min_value=0,
+        error_messages={
+            "invalid": "El tiempo promedio de posesión debe ser un número decimal válido.",
+            "max_digits": "El tiempo promedio de posesión no puede tener más de 8 dígitos en total.",
+            "decimal_places": "El tiempo promedio de posesión no puede tener más de 6 decimales.",
+            "min_value": "El tiempo promedio de posesión debe ser mayor o igual a 0 segundos.",
+            "null": "El tiempo promedio de posesión puede ser nulo si no se especifica.",
+        },
+    )
+
+    distance_km = serializers.DecimalField(
+        required=False,
+        allow_null=True,
+        max_digits=12,
+        decimal_places=6,
+        min_value=0,
+        error_messages={
+            "invalid": "La distancia recorrida debe ser un número decimal válido.",
+            "max_digits": "La distancia recorrida no puede tener más de 10 dígitos en total.",
+            "decimal_places": "La distancia recorrida no puede tener más de 6 decimales.",
+            "min_value": "La distancia recorrida debe ser mayor o igual a 0 km.",
+            "null": "La distancia recorrida puede ser nula si no se especifica.",
         },
     )
 
@@ -201,12 +178,43 @@ class PlayerStatsInputSerializer(serializers.Serializer):
         allow_null=True,
         error_messages={
             "invalid": "La ruta de la imagen del mapa de calor debe ser una URL válida.",
-            "blank": "La ruta de la imagen del mapa de calor"
-            "puede estar vacía si no se especifica.",
+            "blank": "La ruta de la imagen del mapa de calor puede estar vacía si no se especifica.",
             "null": "La ruta de la imagen del mapa de calor puede ser nula si no se especifica.",
         },
     )
 
+    player_crop_path = serializers.URLField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+        error_messages={
+            "invalid": "La ruta del recorte del jugador debe ser una URL válida.",
+            "blank": "La ruta del recorte del jugador puede estar vacía.",
+            "null": "La ruta del recorte del jugador puede ser nula.",
+        },
+    )
+
+    team_heatmap_path = serializers.URLField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+        error_messages={
+            "invalid": "La ruta del mapa de calor del equipo debe ser una URL válida.",
+            "blank": "La ruta del mapa de calor del equipo puede estar vacía.",
+            "null": "La ruta del mapa de calor del equipo puede ser nula.",
+        },
+    )
+
+    movement_trajectories_path = serializers.URLField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+        error_messages={
+            "invalid": "La ruta de las trayectorias debe ser una URL válida.",
+            "blank": "La ruta de las trayectorias puede estar vacía.",
+            "null": "La ruta de las trayectorias puede ser nula.",
+        },
+    )
 
 class PlayerStatsBulkInputSerializer(serializers.Serializer):
     """Envoltorio para recibir un array de jugadores."""
