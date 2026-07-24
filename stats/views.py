@@ -3,6 +3,7 @@ from django.db import transaction, IntegrityError
 from rest_framework import status, generics
 from rest_framework.views import APIView
 from rest_framework.exceptions import ValidationError
+from rest_framework.response import Response
 import logging
 from jugadores.models import Jugadores
 from stats.history_service import get_general_stats, get_analyzed_matches, player_stats_by_match
@@ -302,7 +303,7 @@ class TeamStatsPdfView(APIView):
     """
 
     def get(self, request, match_id):
-        stats = PlayerStats.objects.filter(match_id=match_id)
+        stats = PlayerStatsConsolidated.objects.filter(match_id=match_id)
 
         if not stats.exists():
             return Response(
@@ -313,21 +314,19 @@ class TeamStatsPdfView(APIView):
         per_player = (
             stats.values("player_id")
             .annotate(
-                total_goals=Sum("has_goal"),
-                total_km=Sum("km_run"),
-                total_shots=Sum("shots_on_target"),
+                total_goals=Sum("goals"),
+                total_km=Sum("distance_km"),
                 frames=Count("id"),
                 last_update=Max("created_at"),
             )
-            .order_by("-total_goals", "-total_shots")
+            .order_by("-total_goals")
         )
 
         # Totales del equipo
         team_totals = stats.aggregate(
-            total_goals=Sum("has_goal"),
-            total_km=Sum("km_run"),
-            total_shots=Sum("shots_on_target"),
-            avg_km=Avg("km_run"),
+            total_goals=Sum("goals"),
+            total_km=Sum("distance_km"),
+            avg_km=Avg("distance_km"),
         )
 
         pdf_buffer = self._build_pdf(match_id, per_player, team_totals)
@@ -359,7 +358,6 @@ class TeamStatsPdfView(APIView):
             ["Goles totales", str(team_totals["total_goals"] or 0)],
             ["Km recorridos (total)", f"{team_totals['total_km'] or 0:.2f}"],
             ["Km recorridos (promedio)", f"{team_totals['avg_km'] or 0:.2f}"],
-            ["Remates al arco", str(team_totals["total_shots"] or 0)],
         ]
         resumen_table = Table(resumen_data, colWidths=[8 * cm, 6 * cm])
         resumen_table.setStyle(
@@ -379,19 +377,18 @@ class TeamStatsPdfView(APIView):
 
         # Detalle por jugador
         story.append(Paragraph("Detalle por jugador", styles["Heading2"]))
-        table_data = [["Jugador", "Goles", "Km", "Remates", "Frames"]]
+        table_data = [["Jugador", "Goles", "Km", "Frames"]]
         for row in per_player:
             table_data.append(
                 [
                     str(row["player_id"]),
                     str(row["total_goals"] or 0),
                     f"{row['total_km'] or 0:.2f}",
-                    str(row["total_shots"] or 0),
                     str(row["frames"]),
                 ]
             )
 
-        player_table = Table(table_data, colWidths=[4 * cm, 2.5 * cm, 2.5 * cm, 2.5 * cm, 2.5 * cm])
+        player_table = Table(table_data, colWidths=[4 * cm, 3 * cm, 3 * cm, 3 * cm])
         player_table.setStyle(
             TableStyle(
                 [
