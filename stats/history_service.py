@@ -18,6 +18,8 @@ class PlayerMatchStats:
     team: str
     team_color: str
     analisys_date: str
+    player_movement_trajectories_path: str
+    team_color_time_kde_path: str
 
     goals: int
     team_goals: int
@@ -121,6 +123,8 @@ def player_stats_by_match(match_id: int):
             team_heatmap_image_path=stat.team_heatmap_path,
             crop_image_path=stat.player_crop_path,
             movement_trajectories_path=stat.movement_trajectories_path,
+            player_movement_trajectories_path=stat.player_movement_trajectories_path,
+            team_color_time_kde_path=stat.team_color_time_kde_path,
         )
 
         response.append(asdict(item))
