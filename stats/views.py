@@ -340,8 +340,8 @@ class TeamStatsPdfView(APIView):
             .annotate(
                 total_goals=Sum("goals"),
                 total_km=Sum("distance_km"),
-                frames=Count("id"),
-                last_update=Max("created_at"),
+                avg_acceleration=Avg("avg_acceleration"),
+                avg_speed=Avg("avg_speed_kmh"),
             )
             .order_by("-total_goals")
         )
@@ -500,6 +500,9 @@ class TeamStatsPdfView(APIView):
         )
         styles = self._pdf_styles()
         story = []
+        
+        styles["TitleBanner"].spaceAfter = 2
+        styles["SubtitleBanner"].spaceBefore = 2
 
         # --- Encabezado / banner ---
         banner_data = [
@@ -563,7 +566,7 @@ class TeamStatsPdfView(APIView):
         # --- Detalle por jugador ---
         story.append(Paragraph("Detalle por jugador", styles["SectionHeader"]))
         story.append(HRFlowable(width="100%", thickness=1, color=self.PDF_ACCENT, spaceAfter=8))
-        table_data = [["Jugador", "Goles", "Km", "Frames"]]
+        table_data = [["Jugador", "Goles", "Km Recorridos", "Aceleracion Prom. (m/s²)", "Velocidad Prom. (km/h)"]]
         for row in per_player:
             jugador_obj = jugadores_map.get(row["player_id"])
             name = self._player_display_name(jugador_obj, row["player_id"])
@@ -571,10 +574,11 @@ class TeamStatsPdfView(APIView):
                 name,
                 str(row["total_goals"] or 0),
                 f"{row['total_km'] or 0:.2f}",
-                str(row["frames"]),
+                f"{row['avg_acceleration'] or 0:.2f}",
+                f"{row['avg_speed'] or 0:.2f}",
             ])
 
-        player_table = Table(table_data, colWidths=[7 * cm, 3.7 * cm, 3.7 * cm, 3.6 * cm])
+        player_table = Table(table_data, colWidths=[6 * cm, 2.2 * cm, 3 * cm, 4 * cm, 4 * cm])
         player_table.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, 0), self.PDF_PRIMARY),
             ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
