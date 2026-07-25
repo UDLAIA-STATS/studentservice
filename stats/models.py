@@ -41,6 +41,8 @@ class PlayerStatsConsolidated(models.Model):
     player_crop_path = models.URLField(blank=True)
     team_heatmap_path = models.URLField(blank=True)
     movement_trajectories_path = models.URLField(blank=True)
+    player_movement_trajectories_path = models.URLField(blank=True)
+    team_color_time_kde_path = models.URLField(blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     started_at = models.DateTimeField(null=True, blank=True)

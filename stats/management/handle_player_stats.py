@@ -65,6 +65,8 @@ def handle_stats(message: dict) -> bool:
             team_heatmap_path=message.get("team_heatmap_path", ""),
             movement_trajectories_path=message.get("movement_trajectories_path", ""),
             team_goals=message.get("team_goals", 0),
+            player_movement_trajectories_path=message.get("player_movement_trajectories_path", ""),
+            team_color_time_kde_path=message.get("team_color_time_kde_path", ""),
         )
 
         logger.info(
