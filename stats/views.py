@@ -310,8 +310,8 @@ class TeamStatsPdfView(APIView):
     """
 
     # --- Paleta de colores del PDF ---
-    PDF_PRIMARY = colors.HexColor("#0f3d2e")   # verde cancha
-    PDF_ACCENT = colors.HexColor("#c9a227")    # dorado
+    PDF_PRIMARY = colors.HexColor("#C10230")   # verde cancha
+    PDF_ACCENT = colors.HexColor("#000000")    # dorado
     PDF_LIGHT_BG = colors.HexColor("#f4f4f2")
     PDF_GREY_TEXT = colors.HexColor("#555555")
     PDF_BORDER = colors.HexColor("#dddddd")
@@ -391,7 +391,7 @@ class TeamStatsPdfView(APIView):
     def _pdf_styles(self):
         styles = getSampleStyleSheet()
         styles.add(ParagraphStyle(
-            name="TitleBanner", fontName="Helvetica-Bold", fontSize=20,
+            name="TitleBanner", fontName="Helvetica-Bold", fontSize=20, leading = 24,
             textColor=colors.white, spaceAfter=2,
         ))
         styles.add(ParagraphStyle(
@@ -501,8 +501,6 @@ class TeamStatsPdfView(APIView):
         styles = self._pdf_styles()
         story = []
         
-        styles["TitleBanner"].spaceAfter = 2
-        styles["SubtitleBanner"].spaceBefore = 2
 
         # --- Encabezado / banner ---
         banner_data = [
@@ -516,10 +514,14 @@ class TeamStatsPdfView(APIView):
         banner.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, -1), self.PDF_PRIMARY),
             ("LEFTPADDING", (0, 0), (-1, -1), 14),
+
             ("TOPPADDING", (0, 0), (0, 0), 12),
-            ("BOTTOMPADDING", (0, 0), (0, 0), 2),
+            ("BOTTOMPADDING", (0, 0), (0, 0), 8),
+
+            ("TOPPADDING", (0, 1), (0, 1), 4),
             ("BOTTOMPADDING", (0, 1), (0, 1), 12),
         ]))
+
         story.append(banner)
         story.append(Spacer(1, 18))
 
