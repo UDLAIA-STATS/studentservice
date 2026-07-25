@@ -33,6 +33,7 @@ from io import BytesIO
 from reportlab.platypus import Image, HRFlowable, KeepTogether
 from reportlab.lib.styles import ParagraphStyle
 from PIL import Image as PILImage
+import requests
 
 logger = logging.getLogger(__name__)
 
