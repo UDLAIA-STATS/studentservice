@@ -34,6 +34,8 @@ from reportlab.platypus import Image, HRFlowable, KeepTogether
 from reportlab.lib.styles import ParagraphStyle
 from PIL import Image as PILImage
 import requests
+from requests.adapters import HTTPAdapter, Retry
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 logger = logging.getLogger(__name__)
 
