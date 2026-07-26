@@ -53,7 +53,7 @@ def get_general_stats():
         ]
         or 0
     )
-    stats_dict["jugadores_analizados"] = Jugadores.objects.count()
+    stats_dict["jugadores_analizados"] = PlayerStatsHist.objects.count()
 
     return stats_dict
 
