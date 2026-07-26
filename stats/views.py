@@ -1,3 +1,5 @@
+from collections import defaultdict
+from decimal import Decimal
 import json
 from django.db import transaction, IntegrityError
 from rest_framework import status, generics
@@ -228,16 +230,16 @@ class PlayerStatsListView(generics.ListAPIView):
 
     serializer_class = PlayerStatsConsolidatedSerializer
 
-    def get_queryset(self):
+    def get_queryset(self, request):
         qs = PlayerStatsConsolidated.objects.all()
-        match_id = self.request.query_params.get("match_id")
+        match_id = request.query_params.get("match_id")
         if match_id:
             qs = qs.filter(match_id=match_id)
         return qs.order_by("-created_at")
 
     def list(self, request, *args, **kwargs):
         try:
-            queryset = self.filter_queryset(self.get_queryset())
+            queryset = self.filter_queryset(self.get_queryset(request))
             return paginate_queryset(queryset, self.get_serializer_class(), request)
         except Exception as exc:
             return error_response(
@@ -305,19 +307,31 @@ class PlayerStatsByMatchView(APIView):
 class TeamStatsPdfView(APIView):
     """
     Descarga en PDF las estadísticas consolidadas de un partido (equipo),
-    incluyendo mapa de calor del equipo y mapas individuales por jugador.
+    incluyendo mapas de análisis de equipo (heatmap, trayectorias, KDE de
+    color por tiempo, territorios Voronoi) y mapas individuales por jugador
+    (foto, heatmap, trayectoria de movimiento).
     GET /api/matches/<match_id>/stats/pdf/
     """
-
-    # --- Paleta de colores del PDF ---
-    PDF_PRIMARY = colors.HexColor("#C10230")   # verde cancha
-    PDF_ACCENT = colors.HexColor("#000000")    # dorado
+ 
+    PDF_PRIMARY = colors.HexColor("#C10230")
+    PDF_ACCENT = colors.HexColor("#000000")
     PDF_LIGHT_BG = colors.HexColor("#f4f4f2")
     PDF_GREY_TEXT = colors.HexColor("#555555")
     PDF_BORDER = colors.HexColor("#dddddd")
-
-    # Sesión HTTP reutilizable con reintentos automáticos, compartida
-    # entre todas las peticiones a esta vista
+ 
+    TEAM_IMAGE_FIELDS = [
+        ("team_heatmap_path", "Mapa de calor del equipo", "Distribución consolidada de movimiento de todos los jugadores"),
+        ("movement_trajectories_path", "Trayectorias de movimiento", "Trayectorias agregadas del equipo durante el partido"),
+        ("team_color_time_kde_path", "Densidad temporal por color", "Estimación KDE de ocupación por color de equipo a lo largo del tiempo"),
+        ("voronoi_territories_path", "Territorios (Voronoi)", "Control territorial estimado mediante diagramas de Voronoi"),
+    ]
+ 
+    PLAYER_IMAGE_FIELDS = [
+        ("player_crop_path", "Foto"),
+        ("heatmap_image_path", "Mapa de calor"),
+        ("player_movement_trajectories_path", "Trayectoria"),
+    ]
+ 
     _http_session = requests.Session()
     _retry_strategy = Retry(
         total=2,
@@ -326,72 +340,117 @@ class TeamStatsPdfView(APIView):
     )
     _http_session.mount("https://", HTTPAdapter(max_retries=_retry_strategy))
     _http_session.mount("http://", HTTPAdapter(max_retries=_retry_strategy))
-
+ 
     def get(self, request, match_id):
-        stats = PlayerStatsConsolidated.objects.filter(match_id=match_id)
-
-        if not stats.exists():
+        player_rows = list(
+            PlayerStatsConsolidated.objects
+            .filter(match_id=match_id)
+            .order_by("shirt_number", "player_id")
+        )
+ 
+        if not player_rows:
             return Response(
                 {"error": "No hay estadísticas para este partido"}, status=404
             )
-
-        per_player = (
-            stats.values("player_id")
-            .annotate(
-                total_goals=Sum("goals"),
-                total_km=Sum("distance_km"),
-                avg_acceleration=Avg("avg_acceleration"),
-                avg_speed=Avg("avg_speed_kmh"),
-            )
-            .order_by("-total_goals")
-        )
-
-        team_totals = stats.aggregate(
-            total_goals=Sum("goals"),
-            total_km=Sum("distance_km"),
-            avg_km=Avg("distance_km"),
-        )
-
-        team_heatmap_row = stats.exclude(team_heatmap_path="").first()
-        team_heatmap_path = team_heatmap_row.team_heatmap_path if team_heatmap_row else None
-
-        player_rows = list(stats.order_by("shirt_number", "player_id"))
-
-        # Datos reales de los jugadores (nombre, apellido, posición, foto de respaldo)
+ 
+        per_player, team_totals = self._aggregate_stats(player_rows)
+        team_image_paths = self._extract_team_image_paths(player_rows)
+ 
         player_ids = {row.player_id for row in player_rows}
         jugadores_map = {
             j.idjugador: j for j in Jugadores.objects.filter(idjugador__in=player_ids)
         }
-
-        # Descargar todas las imágenes necesarias en paralelo
-        image_paths = set()
-        if team_heatmap_path:
-            image_paths.add(team_heatmap_path)
+ 
+        image_paths = set(team_image_paths.values())
         for row in player_rows:
-            for path in (row.player_crop_path, row.heatmap_image_path, row.movement_trajectories_path):
+            for attr, _ in self.PLAYER_IMAGE_FIELDS:
+                path = getattr(row, attr, None)
                 if path:
                     image_paths.add(path)
-
+ 
         image_cache = self._fetch_images_concurrently(image_paths)
-
+ 
         pdf_buffer = self._build_pdf(
-            match_id, per_player, team_totals, team_heatmap_path,
+            match_id, per_player, team_totals, team_image_paths,
             player_rows, image_cache, jugadores_map,
         )
-
+ 
         filename = f"team_stats_match_{match_id}.pdf"
         response = HttpResponse(pdf_buffer, content_type="application/pdf")
         response["Content-Disposition"] = f'attachment; filename="{filename}"'
         return response
-
-    # ---------------------------------------------------------------------
-    # Helpers de estilo
-    # ---------------------------------------------------------------------
-
+ 
+    def _aggregate_stats(self, player_rows):
+        buckets = defaultdict(lambda: {
+            "goals": 0, "km": Decimal("0"),
+            "accel_sum": Decimal("0"), "accel_n": 0,
+            "speed_sum": Decimal("0"), "speed_n": 0,
+        })
+ 
+        team_goals_total = 0
+        team_km_total = Decimal("0")
+        team_km_values = []
+ 
+        for row in player_rows:
+            b = buckets[row.player_id]
+            b["goals"] += row.goals or 0
+            km = row.distance_km or Decimal("0")
+            b["km"] += km
+ 
+            if row.avg_acceleration is not None:
+                b["accel_sum"] += row.avg_acceleration
+                b["accel_n"] += 1
+            if row.avg_speed_kmh is not None:
+                b["speed_sum"] += row.avg_speed_kmh
+                b["speed_n"] += 1
+ 
+            team_goals_total += row.goals or 0
+            team_km_total += km
+            if row.distance_km is not None:
+                team_km_values.append(row.distance_km)
+ 
+        per_player = []
+        for player_id, b in buckets.items():
+            per_player.append({
+                "player_id": player_id,
+                "total_goals": b["goals"],
+                "total_km": b["km"],
+                "avg_acceleration": (b["accel_sum"] / b["accel_n"]) if b["accel_n"] else None,
+                "avg_speed": (b["speed_sum"] / b["speed_n"]) if b["speed_n"] else None,
+            })
+        per_player.sort(key=lambda r: r["total_goals"], reverse=True)
+ 
+        team_totals = {
+            "total_goals": team_goals_total,
+            "total_km": team_km_total,
+            "avg_km": (sum(team_km_values) / len(team_km_values)) if team_km_values else Decimal("0"),
+        }
+        return per_player, team_totals
+ 
+    def _extract_team_image_paths(self, player_rows):
+        """
+        Recorre las filas una sola vez y toma, para cada campo de equipo,
+        el primer valor no vacío encontrado (los campos de equipo suelen
+        venir replicados en cada fila de jugador).
+        """
+        result = {attr: None for attr, _, _ in self.TEAM_IMAGE_FIELDS}
+        pending = set(result.keys())
+ 
+        for row in player_rows:
+            if not pending:
+                break
+            for attr in list(pending):
+                value = getattr(row, attr, None)
+                if value:
+                    result[attr] = value
+                    pending.discard(attr)
+ 
+        return result
+ 
     def _pdf_styles(self):
         styles = getSampleStyleSheet()
         styles.add(ParagraphStyle(
-            name="TitleBanner", fontName="Helvetica-Bold", fontSize=20, leading = 24,
+            name="TitleBanner", fontName="Helvetica-Bold", fontSize=20, leading=24,
             textColor=colors.white, spaceAfter=2,
         ))
         styles.add(ParagraphStyle(
@@ -407,6 +466,10 @@ class TeamStatsPdfView(APIView):
             textColor=colors.HexColor("#333333"), alignment=1, leading=12,
         ))
         styles.add(ParagraphStyle(
+            name="TeamImageTitle", fontName="Helvetica-Bold", fontSize=9.5,
+            textColor=colors.HexColor("#333333"), alignment=1, leading=12,
+        ))
+        styles.add(ParagraphStyle(
             name="ImageCaption", fontName="Helvetica-Oblique", fontSize=7.5,
             textColor=colors.grey, alignment=1,
         ))
@@ -415,11 +478,7 @@ class TeamStatsPdfView(APIView):
             textColor=self.PDF_GREY_TEXT,
         ))
         return styles
-
-    # ---------------------------------------------------------------------
-    # Helpers de imágenes
-    # ---------------------------------------------------------------------
-
+ 
     def _fetch_image_bytes(self, path_or_url, timeout=8):
         if not path_or_url:
             return None
@@ -433,13 +492,13 @@ class TeamStatsPdfView(APIView):
         except (requests.RequestException, OSError) as exc:
             logger.warning("No se pudo descargar la imagen '%s': %s", path_or_url, exc)
             return None
-
+ 
     def _fetch_images_concurrently(self, urls, max_workers=8):
         cache = {}
         unique_urls = [u for u in dict.fromkeys(urls) if u]
         if not unique_urls:
             return cache
-
+ 
         with ThreadPoolExecutor(max_workers=min(max_workers, len(unique_urls))) as executor:
             future_map = {
                 executor.submit(self._fetch_image_bytes, url): url for url in unique_urls
@@ -452,13 +511,12 @@ class TeamStatsPdfView(APIView):
                     logger.warning("Error inesperado descargando '%s': %s", url, exc)
                     cache[url] = None
         return cache
-
-    def _image_flowable_from_bytes(self, img_bytes, max_width, max_height, placeholder_text="Imagen no disponible"):
-        styles = self._pdf_styles()
-
+ 
+    def _image_flowable_from_bytes(self, styles, img_bytes, max_width, max_height,
+                                    placeholder_text="Imagen no disponible"):
         if not img_bytes:
             return Paragraph(f"<i>{placeholder_text}</i>", styles["ImageCaption"])
-
+ 
         try:
             img_buffer = BytesIO(img_bytes)
             pil_img = PILImage.open(img_buffer)
@@ -469,12 +527,12 @@ class TeamStatsPdfView(APIView):
         except (OSError, ValueError) as exc:
             logger.warning("Imagen inválida o corrupta: %s", exc)
             return Paragraph(f"<i>{placeholder_text}</i>", styles["ImageCaption"])
-
+ 
     def _player_display_name(self, jugador_obj, fallback_id):
         if jugador_obj:
             return f"{jugador_obj.nombrejugador} {jugador_obj.apellidojugador}"
         return f"Jugador ID {fallback_id}"
-
+ 
     def _pdf_footer(self, canvas, doc):
         canvas.saveState()
         canvas.setFont("Helvetica", 8)
@@ -482,12 +540,62 @@ class TeamStatsPdfView(APIView):
         canvas.drawString(1.5 * cm, 1 * cm, "Estadísticas del partido — generado automáticamente")
         canvas.drawRightString(doc.pagesize[0] - 1.5 * cm, 1 * cm, f"Página {doc.page}")
         canvas.restoreState()
-
-    # ---------------------------------------------------------------------
-    # Construcción del PDF
-    # ---------------------------------------------------------------------
-
-    def _build_pdf(self, match_id, per_player, team_totals, team_heatmap_path,
+ 
+    def _build_team_section(self, styles, team_image_paths, image_cache):
+        story = [
+            Paragraph("Análisis del equipo", styles["SectionHeader"]),
+            HRFlowable(width="100%", thickness=1, color=self.PDF_ACCENT, spaceAfter=8),
+        ]
+ 
+        cell_width = 8.9 * cm
+        cell_height_img = 5.8 * cm
+ 
+        cells = []
+        for attr, title, caption in self.TEAM_IMAGE_FIELDS:
+            path = team_image_paths.get(attr)
+            if path:
+                img_flowable = self._image_flowable_from_bytes(
+                    styles, image_cache.get(path), max_width=cell_width - 0.6 * cm, max_height=cell_height_img,
+                )
+                caption_flowable = Paragraph(caption, styles["ImageCaption"])
+            else:
+                img_flowable = Paragraph("<i>No disponible</i>", styles["EmptyNote"])
+                caption_flowable = Paragraph("", styles["ImageCaption"])
+ 
+            cell_content = Table(
+                [
+                    [Paragraph(title, styles["TeamImageTitle"])],
+                    [img_flowable],
+                    [caption_flowable],
+                ],
+                colWidths=[cell_width],
+            )
+            cell_content.setStyle(TableStyle([
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("VALIGN", (0, 1), (0, 1), "MIDDLE"),
+                ("BOX", (0, 0), (-1, -1), 0.5, self.PDF_BORDER),
+                ("LINEBELOW", (0, 0), (-1, 0), 0.5, self.PDF_BORDER),
+                ("BACKGROUND", (0, 0), (-1, 0), self.PDF_LIGHT_BG),
+                ("TOPPADDING", (0, 0), (-1, 0), 5),
+                ("BOTTOMPADDING", (0, 0), (-1, 0), 5),
+                ("TOPPADDING", (0, 1), (0, 1), 6),
+                ("BOTTOMPADDING", (0, -1), (0, -1), 6),
+            ]))
+            cells.append(cell_content)
+ 
+        grid_rows = [cells[0:2], cells[2:4]]
+        grid = Table(grid_rows, colWidths=[cell_width, cell_width])
+        grid.setStyle(TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 3),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+            ("TOPPADDING", (0, 0), (-1, -1), 3),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
+        ]))
+        story.append(grid)
+        return story
+ 
+    def _build_pdf(self, match_id, per_player, team_totals, team_image_paths,
                     player_rows, image_cache, jugadores_map):
         buffer = BytesIO()
         doc = SimpleDocTemplate(
@@ -500,9 +608,7 @@ class TeamStatsPdfView(APIView):
         )
         styles = self._pdf_styles()
         story = []
-        
-
-        # --- Encabezado / banner ---
+ 
         banner_data = [
             [Paragraph("Estadísticas consolidadas", styles["TitleBanner"])],
             [Paragraph(
@@ -514,36 +620,18 @@ class TeamStatsPdfView(APIView):
         banner.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, -1), self.PDF_PRIMARY),
             ("LEFTPADDING", (0, 0), (-1, -1), 14),
-
             ("TOPPADDING", (0, 0), (0, 0), 12),
             ("BOTTOMPADDING", (0, 0), (0, 0), 8),
-
             ("TOPPADDING", (0, 1), (0, 1), 4),
             ("BOTTOMPADDING", (0, 1), (0, 1), 12),
         ]))
-
+ 
         story.append(banner)
         story.append(Spacer(1, 18))
-
-        # --- Mapa de calor del equipo ---
-        story.append(Paragraph("Mapa de calor del equipo", styles["SectionHeader"]))
-        story.append(HRFlowable(width="100%", thickness=1, color=self.PDF_ACCENT, spaceAfter=8))
-        if team_heatmap_path:
-            story.append(self._image_flowable_from_bytes(
-                image_cache.get(team_heatmap_path), max_width=16 * cm, max_height=9 * cm
-            ))
-            story.append(Paragraph(
-                "Distribución consolidada de movimiento de todos los jugadores",
-                styles["ImageCaption"],
-            ))
-        else:
-            story.append(Paragraph(
-                "No hay mapa de calor de equipo disponible para este partido.",
-                styles["EmptyNote"],
-            ))
+ 
+        story.extend(self._build_team_section(styles, team_image_paths, image_cache))
         story.append(Spacer(1, 16))
-
-        # --- Resumen del equipo ---
+ 
         story.append(Paragraph("Resumen del equipo", styles["SectionHeader"]))
         story.append(HRFlowable(width="100%", thickness=1, color=self.PDF_ACCENT, spaceAfter=8))
         resumen_data = [
@@ -564,8 +652,7 @@ class TeamStatsPdfView(APIView):
         ]))
         story.append(resumen_table)
         story.append(Spacer(1, 18))
-
-        # --- Detalle por jugador ---
+ 
         story.append(Paragraph("Detalle por jugador", styles["SectionHeader"]))
         story.append(HRFlowable(width="100%", thickness=1, color=self.PDF_ACCENT, spaceAfter=8))
         table_data = [["Jugador", "Goles", "Km Recorridos", "Aceleracion Prom. (m/s²)", "Velocidad Prom. (km/h)"]]
@@ -579,7 +666,7 @@ class TeamStatsPdfView(APIView):
                 f"{row['avg_acceleration'] or 0:.2f}",
                 f"{row['avg_speed'] or 0:.2f}",
             ])
-
+ 
         player_table = Table(table_data, colWidths=[6 * cm, 2.2 * cm, 3 * cm, 4 * cm, 4 * cm])
         player_table.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, 0), self.PDF_PRIMARY),
@@ -595,43 +682,43 @@ class TeamStatsPdfView(APIView):
         ]))
         story.append(player_table)
         story.append(Spacer(1, 18))
-
-        # --- Mapas individuales por jugador ---
+ 
         story.append(Paragraph("Mapas individuales por jugador", styles["SectionHeader"]))
         story.append(HRFlowable(width="100%", thickness=1, color=self.PDF_ACCENT, spaceAfter=8))
-
+ 
         if not player_rows:
             story.append(Paragraph("No hay mapas individuales disponibles.", styles["EmptyNote"]))
         else:
             for row in player_rows:
                 jugador_obj = jugadores_map.get(row.player_id)
                 name = self._player_display_name(jugador_obj, row.player_id)
-
+ 
                 sub_parts = []
                 if row.shirt_number:
                     sub_parts.append(f"#{row.shirt_number}")
                 if jugador_obj and jugador_obj.posicionjugador:
                     sub_parts.append(jugador_obj.posicionjugador)
                 sublabel = " • ".join(sub_parts)
-
+ 
                 label_html = name
                 if sublabel:
                     label_html += f"<br/><font size=7 color='#777777'>{sublabel}</font>"
-
+ 
                 crop_bytes = image_cache.get(row.player_crop_path) if row.player_crop_path else None
                 if not crop_bytes and jugador_obj and jugador_obj.imagenjugador:
                     crop_bytes = bytes(jugador_obj.imagenjugador)
-
+ 
                 crop_img = self._image_flowable_from_bytes(
-                    crop_bytes, max_width=3 * cm, max_height=3 * cm, placeholder_text="Sin foto"
+                    styles, crop_bytes, max_width=3 * cm, max_height=3 * cm, placeholder_text="Sin foto"
                 )
                 heatmap_img = self._image_flowable_from_bytes(
-                    image_cache.get(row.heatmap_image_path), max_width=5.5 * cm, max_height=5.5 * cm
+                    styles, image_cache.get(row.heatmap_image_path), max_width=5.5 * cm, max_height=5.5 * cm
                 )
                 traj_img = self._image_flowable_from_bytes(
-                    image_cache.get(row.movement_trajectories_path), max_width=5.5 * cm, max_height=5.5 * cm
+                    styles, image_cache.get(row.player_movement_trajectories_path),
+                    max_width=5.5 * cm, max_height=5.5 * cm,
                 )
-
+ 
                 card_data = [
                     [Paragraph(label_html, styles["PlayerLabel"]), "", ""],
                     [crop_img, heatmap_img, traj_img],
@@ -655,7 +742,7 @@ class TeamStatsPdfView(APIView):
                     ("BOTTOMPADDING", (0, -1), (-1, -1), 8),
                 ]))
                 story.append(KeepTogether([card, Spacer(1, 10)]))
-
+ 
         doc.build(story, onFirstPage=self._pdf_footer, onLaterPages=self._pdf_footer)
         buffer.seek(0)
         return buffer
