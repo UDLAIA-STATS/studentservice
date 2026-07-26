@@ -29,6 +29,7 @@ urlpatterns = [
     path(
         "consolidated/stat/correction/",
         PlayerStatsCorrectionView.as_view(),
+        name="consolidated-correction",
     ),
     path(
         "general-stats/",

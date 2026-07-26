@@ -7,23 +7,6 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
 
 def handle_stats(message: dict) -> bool:
-    """
-    Procesa mensaje de Kafka con estadísticas del modelo IA
-
-    Esperado:
-    {
-        "shirt_number": 10,
-        "team_color": "BLUE",
-        "match_id": 123,
-        "passes": 45,
-        "shots_on_target": 3,
-        "has_goal": 1,
-        "distance_km": 9.5,
-        "avg_possession_time_s": 120,
-        "avg_speed_kmh": 7.2
-        "heatmap_image_path": "/path/to/heatmap.png"
-    }
-    """
     try:
         shirt_number = message.get("shirt_number")
         team_color = message.get("team_color")
