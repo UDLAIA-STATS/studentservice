@@ -2,8 +2,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime
 from typing import Dict, List
 
-from django.db import transaction
-from django.db.models import Sum, Avg, Count
+from django.db.models import Avg
 from jugadores.models import Jugadores
 from .models import PlayerStatsConsolidated, PlayerStatsHist
 
@@ -114,7 +113,7 @@ def player_stats_by_match(match_id: int):
             shirt_number=player.numerocamisetajugador,
             team=stat.team or "",
             team_color=stat.team_color or "",
-            analisys_date=stat.created_at.strftime("%d-%m-%Y %H:%M:%S"),
+            analisys_date=stat.created_at.strftime("%d-%m-%Y %H:%M"),
             goals=stat.goals,
             team_goals=stat.team_goals,
             avg_speed_kmh=float(stat.avg_speed_kmh or 0),
