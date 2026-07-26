@@ -37,12 +37,13 @@ class PlayerStatsConsolidated(models.Model):
     avg_acceleration = models.DecimalField(
         max_digits=12, decimal_places=6, null=True, blank=True
     )
-    heatmap_image_path = models.URLField(blank=True)
-    player_crop_path = models.URLField(blank=True)
-    team_heatmap_path = models.URLField(blank=True)
-    movement_trajectories_path = models.URLField(blank=True)
-    player_movement_trajectories_path = models.URLField(blank=True)
-    team_color_time_kde_path = models.URLField(blank=True)
+    heatmap_image_path = models.URLField(blank=True) # Jugador
+    player_crop_path = models.URLField(blank=True) # Jugador
+    team_heatmap_path = models.URLField(blank=True) # Equipo
+    movement_trajectories_path = models.URLField(blank=True) # Equipo
+    player_movement_trajectories_path = models.URLField(blank=True) # Jugador
+    team_color_time_kde_path = models.URLField(blank=True) # Equipo
+    voronoi_territories_path = models.URLField(blank=True) # Equipo
 
     created_at = models.DateTimeField(auto_now_add=True)
     started_at = models.DateTimeField(null=True, blank=True)

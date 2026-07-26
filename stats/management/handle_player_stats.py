@@ -65,6 +65,7 @@ def handle_stats(message: dict) -> bool:
             team_goals=message.get("team_goals", 0),
             player_movement_trajectories_path=message.get("player_movement_trajectories_path", ""),
             team_color_time_kde_path=message.get("team_color_time_kde_path", ""),
+            voronoi_territories_path=message.get("voronoi_territories_path", ""),
         )
 
         logger.info(
