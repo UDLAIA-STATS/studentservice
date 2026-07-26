@@ -439,7 +439,7 @@ class TeamStatsPdfView(APIView):
         for row in player_rows:
             if not pending:
                 break
-            for attr in list(pending):
+            for attr in pending:
                 value = getattr(row, attr, None)
                 if value:
                     result[attr] = value
