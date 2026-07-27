@@ -17,6 +17,7 @@ class PlayerStatsConsolidatedPatchSerializer(serializers.ModelSerializer):
             "shirt_number",
             "team",
             "team_color",
+            "team_goals",
             "passes",
             "goals",
             "avg_speed_kmh",
@@ -27,7 +28,11 @@ class PlayerStatsConsolidatedPatchSerializer(serializers.ModelSerializer):
             "player_crop_path",
             "team_heatmap_path",
             "movement_trajectories_path",
+            "player_movement_trajectories_path",
+            "team_color_time_kde_path",
+            "voronoi_territories_path",
         )
+
 
 class PlayerStatsInputSerializer(serializers.Serializer):
     """Valida el payload de un jugador."""
@@ -139,7 +144,7 @@ class PlayerStatsInputSerializer(serializers.Serializer):
             "decimal_places": "La aceleración promedio no puede tener más de 6 decimales.",
             "min_value": "La aceleración promedio debe ser mayor o igual a 0 m/s^2.",
             "null": "La aceleración promedio puede ser nula si no se especifica.",
-        }
+        },
     )
 
     avg_possession_time_s = serializers.DecimalField(
@@ -215,6 +220,63 @@ class PlayerStatsInputSerializer(serializers.Serializer):
             "null": "La ruta de las trayectorias puede ser nula.",
         },
     )
+
+    track_id = serializers.IntegerField(
+        required=False,
+        allow_null=True,
+        min_value=0,
+        error_messages={
+            "invalid": "El ID del track debe ser un número válido.",
+            "min_value": "El ID del track debe ser mayor o igual a 0.",
+            "null": "El ID del track puede ser nulo.",
+        },
+    )
+
+    team_goals = serializers.IntegerField(
+        required=False,
+        allow_null=True,
+        default=0,
+        min_value=0,
+        error_messages={
+            "invalid": "Los goles del equipo deben ser un número válido.",
+            "min_value": "Los goles del equipo no pueden ser negativos.",
+            "null": "Los goles del equipo pueden ser nulos.",
+        },
+    )
+
+    player_movement_trajectories_path = serializers.URLField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+        error_messages={
+            "invalid": "La ruta de la trayectoria individual debe ser una URL válida.",
+            "blank": "La ruta de la trayectoria individual puede estar vacía.",
+            "null": "La ruta de la trayectoria individual puede ser nula.",
+        },
+    )
+
+    team_color_time_kde_path = serializers.URLField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+        error_messages={
+            "invalid": "La ruta del KDE temporal del equipo debe ser una URL válida.",
+            "blank": "La ruta del KDE temporal del equipo puede estar vacía.",
+            "null": "La ruta del KDE temporal del equipo puede ser nula.",
+        },
+    )
+
+    voronoi_territories_path = serializers.URLField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+        error_messages={
+            "invalid": "La ruta del diagrama de Voronoi debe ser una URL válida.",
+            "blank": "La ruta del diagrama de Voronoi puede estar vacía.",
+            "null": "La ruta del diagrama de Voronoi puede ser nula.",
+        },
+    )
+
 
 class PlayerStatsBulkInputSerializer(serializers.Serializer):
     """Envoltorio para recibir un array de jugadores."""

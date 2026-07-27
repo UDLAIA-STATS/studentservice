@@ -4,6 +4,7 @@ import json
 import base64
 from unittest.mock import patch
 from django.db import IntegrityError
+from rest_framework.response import Response
 
 from jugadores.models import Jugadores
 
@@ -296,3 +297,250 @@ class JugadoresTestCase(TestCase):
         self.assertEqual(resp.status_code, 200)
         payload = self.parse(resp)
         self.assertTrue("error" in payload or "data" in payload)
+
+
+    @patch("jugadores.views.paginate_queryset")
+    def test_get_all_players_success(self, mock_paginate):
+        mock_paginate.return_value = Response(
+            {"mensaje": "ok"},
+            status=200,
+        )
+
+        response = self.client.get(reverse("jugador-all"))
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_active_players_shirts(self):
+        response = self.client.get(reverse("jugadores-activos"))
+
+        self.assertEqual(response.status_code, 200)
+
+        payload = self.parse(response)
+
+        self.assertEqual(payload["mensaje"], "Shirts de jugadores activos")
+
+    # -----------------
+    # DETAIL BANNER
+    # -----------------
+
+    def test_detail_banner_success(self):
+        response = self.client.get(
+            reverse("jugador-detail", args=[self.jugador.idbanner])
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_detail_banner_not_found(self):
+        response = self.client.get(reverse("jugador-detail", args=["A99999999"]))
+
+        self.assertEqual(response.status_code, 404)
+
+    # -----------------
+    # DETAIL ID
+    # -----------------
+
+    def test_detail_id_success(self):
+        response = self.client.get(
+            reverse("jugador-detail-id", args=[self.jugador.idjugador])
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_detail_id_not_found(self):
+        response = self.client.get(reverse("jugador-detail-id", args=[999]))
+
+        self.assertEqual(response.status_code, 400)
+
+    # -----------------
+    # DETAIL SHIRT
+    # -----------------
+
+    def test_detail_shirt_success(self):
+        response = self.client.get(
+            reverse(
+                "jugador-detail-shirt-number",
+                args=[10],
+            )
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_detail_shirt_not_found(self):
+        response = self.client.get(
+            reverse(
+                "jugador-detail-shirt-number",
+                args=[99],
+            )
+        )
+
+        self.assertEqual(response.status_code, 404)
+
+    @patch("jugadores.views.get_object_or_404")
+    def test_detail_shirt_exception(self, mock_get):
+
+        mock_get.side_effect = Exception("boom")
+
+        response = self.client.get(
+            reverse(
+                "jugador-detail-shirt-number",
+                args=[10],
+            )
+        )
+
+        self.assertEqual(response.status_code, 400)
+
+    # -----------------
+    # UPDATE
+    # -----------------
+
+    def test_patch_success(self):
+
+        response = self.patch_json(
+            reverse(
+                "jugador-update",
+                args=[self.jugador.idjugador],
+            ),
+            {"nombrejugador": "Pedro"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+    @patch(
+        "jugadores.views.JugadorUpdateSerializer.save",
+        side_effect=IntegrityError(),
+    )
+    def test_patch_integrity_error(
+        self,
+        mock_save,
+    ):
+
+        response = self.patch_json(
+            reverse(
+                "jugador-update",
+                args=[self.jugador.idjugador],
+            ),
+            {"nombrejugador": "Pedro"},
+        )
+
+        self.assertEqual(response.status_code, 400)
+
+    @patch(
+        "jugadores.views.JugadorUpdateSerializer.save",
+        side_effect=Exception("boom"),
+    )
+    def test_patch_exception(
+        self,
+        mock_save,
+    ):
+
+        response = self.patch_json(
+            reverse(
+                "jugador-update",
+                args=[self.jugador.idjugador],
+            ),
+            {"nombrejugador": "Pedro"},
+        )
+
+        self.assertEqual(response.status_code, 400)
+
+    # -----------------
+    # DELETE
+    # -----------------
+
+    def test_delete_success(self):
+
+        response = self.client.delete(
+            reverse(
+                "jugador-delete",
+                args=[self.jugador.idbanner],
+            )
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        self.jugador.refresh_from_db()
+
+        self.assertFalse(self.jugador.jugadoractivo)
+
+    def test_delete_already_inactive(self):
+
+        self.jugador.jugadoractivo = False
+
+        self.jugador.save()
+
+        response = self.client.delete(
+            reverse(
+                "jugador-delete",
+                args=[self.jugador.idbanner],
+            )
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+    @patch("jugadores.views.get_object_or_404")
+    def test_delete_exception(
+        self,
+        mock_get,
+    ):
+
+        mock_get.side_effect = Exception("boom")
+
+        response = self.client.delete(
+            reverse(
+                "jugador-delete",
+                args=[self.jugador.idbanner],
+            )
+        )
+
+        self.assertEqual(response.status_code, 400)
+
+    # -----------------
+    # SERIALIZER
+    # -----------------
+
+    def test_create_duplicate_banner(self):
+
+        response = self.post_json(
+            reverse("jugador-list-create"),
+            {
+                "idbanner": "A00000001",
+                "nombrejugador": "Nuevo",
+                "apellidojugador": "Jugador",
+                "numerocamisetajugador": 20,
+                "posicionjugador": "Delantero",
+            },
+        )
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_create_duplicate_active_shirt(self):
+
+        response = self.post_json(
+            reverse("jugador-list-create"),
+            {
+                "idbanner": "A00000088",
+                "nombrejugador": "Nuevo",
+                "apellidojugador": "Jugador",
+                "numerocamisetajugador": 10,
+                "posicionjugador": "Delantero",
+                "jugadoractivo": True,
+            },
+        )
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_create_same_shirt_inactive_allowed(self):
+
+        response = self.post_json(
+            reverse("jugador-list-create"),
+            {
+                "idbanner": "A00000077",
+                "nombrejugador": "Nuevo",
+                "apellidojugador": "Jugador",
+                "numerocamisetajugador": 10,
+                "posicionjugador": "Delantero",
+                "jugadoractivo": False,
+            },
+        )
+
+        self.assertEqual(response.status_code, 201)
