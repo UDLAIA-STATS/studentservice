@@ -12,25 +12,30 @@ def handle_stats(message: dict) -> bool:
         team_color = message.get("team_color")
         match_id = message.get("match_id")
 
-        if shirt_number is None or team_color is None or match_id is None:
+        if team_color is None or match_id is None:
             logger.error("Datos incompletos en mensaje: %s", message)
             return False
 
-        jugador = Jugadores.objects.filter(
-            numerocamisetajugador=shirt_number,
-            jugadoractivo=True
-        ).first()
+        id_jugador = None
 
-        if not jugador:
-            logger.warning(
-                "Jugador no encontrado: shirt_number=%s, team_color=%s",
-                shirt_number,
-                team_color
-            )
-            return False
+        if shirt_number:
+            jugador = Jugadores.objects.filter(
+                numerocamisetajugador=shirt_number,
+                jugadoractivo=True
+            ).first()
+
+            if not jugador:
+                logger.warning(
+                    "Jugador no encontrado: shirt_number=%s, team_color=%s",
+                    shirt_number,
+                    team_color
+                )
+                id_jugador = None
+            else:
+                id_jugador = jugador.idjugador
 
         stats = PlayerStatsConsolidated.objects.create(
-            player_id=jugador.idjugador,
+            player_id=id_jugador,
             match_id=match_id,
             shirt_number=shirt_number,
             team_color=team_color,
