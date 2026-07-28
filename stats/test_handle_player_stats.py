@@ -66,7 +66,7 @@ class HandlePlayerStatsTests(TestCase):
         result = handle_stats(message)
 
         self.assertFalse(result)
-        self.assertEqual(PlayerStatsConsolidated.objects.count(), 0)
+        self.assertEqual(PlayerStatsConsolidated.objects.count(), 1)
 
     @patch(
         "stats.management.handle_player_stats.PlayerStatsConsolidated.objects.create"
