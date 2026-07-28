@@ -61,7 +61,7 @@ class PlayerStatsInputSerializer(serializers.Serializer):
     shirt_number = serializers.IntegerField(
         required=False,
         allow_null=True,
-        min_value=1,
+        min_value=0,
         error_messages={
             "invalid": "El número de camiseta debe ser un número válido.",
             "min_value": "El número de camiseta debe ser mayor o igual a 1.",
