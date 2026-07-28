@@ -40,7 +40,6 @@ class PlayerStatsInputSerializer(serializers.Serializer):
     player_id = serializers.IntegerField(
         required=True,
         allow_null=True,
-        min_value=1,
         error_messages={
             "required": "El ID del jugador es obligatorio.",
             "invalid": "El ID del jugador debe ser un número válido.",
