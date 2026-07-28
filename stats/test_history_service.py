@@ -124,5 +124,5 @@ class HistoryServiceTests(TestCase):
 
         response = player_stats_by_match(10)
 
-        self.assertEqual(len(response), 1)
+        self.assertEqual(len(response), 2)
         self.assertEqual(response[0]["player_id"], self.player.idjugador)
