@@ -58,7 +58,7 @@ def handle_stats(message: dict) -> bool:
 
         logger.info(
             "Creada estadística para jugador %s en partido %s",
-            jugador.idjugador,
+            id_jugador,
             match_id
         )
 
