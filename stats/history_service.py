@@ -10,7 +10,7 @@ from .models import PlayerStatsConsolidated, PlayerStatsHist
 @dataclass
 class PlayerMatchStats:
     stat_id: int
-    player_id: int
+    player_id: int | None
     player_name: str
     match_id: int
     shirt_number: int
