@@ -101,16 +101,15 @@ def player_stats_by_match(match_id: int):
 
     for stat in stats:
         player = Jugadores.objects.filter(idjugador=stat.player_id).first()
-
-        if player is None:
-            continue
+        nombre_jugador = f"{player.nombrejugador} {player.apellidojugador}" if player else "Jugador desconocido"
+        camiseta = player.numerocamisetajugador if player else 0
 
         item = PlayerMatchStats(
             stat_id=stat.id,
             player_id=stat.player_id,
-            player_name=f"{player.nombrejugador} {player.apellidojugador}",
+            player_name=nombre_jugador,
             match_id=stat.match_id,
-            shirt_number=player.numerocamisetajugador,
+            shirt_number=camiseta,
             team=stat.team or "",
             team_color=stat.team_color or "",
             analisys_date=stat.created_at.strftime("%d-%m-%Y %H:%M"),
