@@ -12,7 +12,7 @@ def handle_stats(message: dict) -> bool:
         team_color = message.get("team_color")
         match_id = message.get("match_id")
 
-        if not all([shirt_number, team_color, match_id]):
+        if shirt_number is None or team_color is None or match_id is None:
             logger.error("Datos incompletos en mensaje: %s", message)
             return False
 
